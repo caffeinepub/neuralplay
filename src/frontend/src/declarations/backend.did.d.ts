@@ -43,6 +43,10 @@ export type UserRole = { 'admin' : null } |
   { 'guest' : null };
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
+  'addTask' : ActorMethod<
+    [string, string, TaskCategory, bigint, Array<string>, boolean],
+    bigint
+  >,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'completeTask' : ActorMethod<[bigint], undefined>,
   'getAllTasks' : ActorMethod<[], Array<Task>>,

@@ -1,0 +1,152 @@
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Figtree";
+  src: url("/assets/fonts/Figtree.woff2") format("woff2");
+  font-weight: 300 900;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0.97 0.005 285;
+    --foreground: 0.18 0.04 285;
+    --card: 1 0 0;
+    --card-foreground: 0.18 0.04 285;
+    --popover: 1 0 0;
+    --popover-foreground: 0.18 0.04 285;
+    --primary: 0.5 0.2 300;
+    --primary-foreground: 1 0 0;
+    --secondary: 0.93 0.03 285;
+    --secondary-foreground: 0.3 0.1 300;
+    --muted: 0.94 0.02 285;
+    --muted-foreground: 0.52 0.06 285;
+    --accent: 0.92 0.05 300;
+    --accent-foreground: 0.3 0.12 300;
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 1 0 0;
+    --border: 0.88 0.04 285;
+    --input: 0.88 0.04 285;
+    --ring: 0.5 0.2 300;
+    --radius: 0.75rem;
+    --chart-1: 0.5 0.2 300;
+    --chart-2: 0.62 0.18 160;
+    --chart-3: 0.6 0.18 220;
+    --chart-4: 0.7 0.15 80;
+    --chart-5: 0.65 0.2 340;
+    --sidebar: 0.96 0.01 285;
+    --sidebar-foreground: 0.18 0.04 285;
+    --sidebar-primary: 0.5 0.2 300;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.92 0.05 300;
+    --sidebar-accent-foreground: 0.3 0.12 300;
+    --sidebar-border: 0.88 0.04 285;
+    --sidebar-ring: 0.5 0.2 300;
+  }
+
+  .dark {
+    --background: 0.12 0.025 285;
+    --foreground: 0.94 0.02 285;
+    --card: 0.16 0.03 285;
+    --card-foreground: 0.94 0.02 285;
+    --popover: 0.16 0.03 285;
+    --popover-foreground: 0.94 0.02 285;
+    --primary: 0.62 0.22 300;
+    --primary-foreground: 0.1 0.02 285;
+    --secondary: 0.22 0.04 285;
+    --secondary-foreground: 0.85 0.04 285;
+    --muted: 0.2 0.03 285;
+    --muted-foreground: 0.6 0.05 285;
+    --accent: 0.25 0.06 300;
+    --accent-foreground: 0.85 0.04 285;
+    --destructive: 0.55 0.22 25;
+    --destructive-foreground: 1 0 0;
+    --border: 0.25 0.04 285;
+    --input: 0.25 0.04 285;
+    --ring: 0.62 0.22 300;
+    --chart-1: 0.62 0.22 300;
+    --chart-2: 0.65 0.2 160;
+    --chart-3: 0.62 0.18 220;
+    --chart-4: 0.72 0.15 80;
+    --chart-5: 0.68 0.22 340;
+    --sidebar: 0.14 0.025 285;
+    --sidebar-foreground: 0.94 0.02 285;
+    --sidebar-primary: 0.62 0.22 300;
+    --sidebar-primary-foreground: 0.1 0.02 285;
+    --sidebar-accent: 0.25 0.06 300;
+    --sidebar-accent-foreground: 0.85 0.04 285;
+    --sidebar-border: 0.25 0.04 285;
+    --sidebar-ring: 0.62 0.22 300;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+}
+
+/* POS custom animations */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.5 0.2 300 / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 12px oklch(0.5 0.2 300 / 0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.35s ease-out both;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out both;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.pos-card {
+  @apply bg-card rounded-2xl shadow-card border border-border;
+}
+
+.pos-input {
+  @apply w-full rounded-xl border border-input bg-background px-4 py-3 text-sm font-medium placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all;
+}

@@ -43,6 +43,7 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
+    addTask(title: string, description: string, category: TaskCategory, creditReward: bigint, steps: Array<string>, isDaily: boolean): Promise<bigint>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     completeTask(taskId: bigint): Promise<void>;
     getAllTasks(): Promise<Array<Task>>;

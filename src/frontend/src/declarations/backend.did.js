@@ -8,15 +8,15 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const UserRole = IDL.Variant({
-  'admin' : IDL.Null,
-  'user' : IDL.Null,
-  'guest' : IDL.Null,
-});
 export const TaskCategory = IDL.Variant({
   'intermediate' : IDL.Null,
   'beginner' : IDL.Null,
   'advanced' : IDL.Null,
+});
+export const UserRole = IDL.Variant({
+  'admin' : IDL.Null,
+  'user' : IDL.Null,
+  'guest' : IDL.Null,
 });
 export const Task = IDL.Record({
   'id' : IDL.Nat,
@@ -46,6 +46,11 @@ export const ContactMessage = IDL.Record({
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+  'addTask' : IDL.Func(
+      [IDL.Text, IDL.Text, TaskCategory, IDL.Nat, IDL.Vec(IDL.Text), IDL.Bool],
+      [IDL.Nat],
+      [],
+    ),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
   'completeTask' : IDL.Func([IDL.Nat], [], []),
   'getAllTasks' : IDL.Func([], [IDL.Vec(Task)], ['query']),
@@ -69,15 +74,15 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
-  const UserRole = IDL.Variant({
-    'admin' : IDL.Null,
-    'user' : IDL.Null,
-    'guest' : IDL.Null,
-  });
   const TaskCategory = IDL.Variant({
     'intermediate' : IDL.Null,
     'beginner' : IDL.Null,
     'advanced' : IDL.Null,
+  });
+  const UserRole = IDL.Variant({
+    'admin' : IDL.Null,
+    'user' : IDL.Null,
+    'guest' : IDL.Null,
   });
   const Task = IDL.Record({
     'id' : IDL.Nat,
@@ -107,6 +112,18 @@ export const idlFactory = ({ IDL }) => {
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
+    'addTask' : IDL.Func(
+        [
+          IDL.Text,
+          IDL.Text,
+          TaskCategory,
+          IDL.Nat,
+          IDL.Vec(IDL.Text),
+          IDL.Bool,
+        ],
+        [IDL.Nat],
+        [],
+      ),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
     'completeTask' : IDL.Func([IDL.Nat], [], []),
     'getAllTasks' : IDL.Func([], [IDL.Vec(Task)], ['query']),

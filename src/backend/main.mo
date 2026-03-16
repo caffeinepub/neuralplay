@@ -1,18 +1,12 @@
 import Int "mo:core/Int";
 import Time "mo:core/Time";
 import List "mo:core/List";
-import Nat "mo:core/Nat";
-import Array "mo:core/Array";
-import Text "mo:core/Text";
 import Order "mo:core/Order";
-import Iter "mo:core/Iter";
 import Map "mo:core/Map";
 import Runtime "mo:core/Runtime";
-import Nat32 "mo:core/Nat32";
 import Principal "mo:core/Principal";
-import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
-
+import MixinAuthorization "authorization/MixinAuthorization";
 
 actor {
   // Types
@@ -113,10 +107,6 @@ actor {
 
     // Check if user already has a profile
     let existingProfile = users.get(caller);
-    let isNewProfile = switch (existingProfile) {
-      case (null) { true };
-      case (?_) { false };
-    };
 
     let profile : UserProfile = switch (existingProfile) {
       case (null) {
@@ -284,5 +274,44 @@ actor {
   public query ({ caller }) func getAllTasks() : async [Task] {
     // Public - anyone can view all tasks
     tasks.values().toArray();
+  };
+
+  public shared ({ caller }) func addTask(
+    title : Text,
+    description : Text,
+    category : TaskCategory,
+    creditReward : Nat,
+    steps : [Text],
+    isDaily : Bool,
+  ) : async Nat {
+    if (not AccessControl.isAdmin(accessControlState, caller)) {
+      Runtime.trap("Unauthorized: Only admins can add tasks");
+    };
+
+    if (title.size() == 0 or description.size() == 0 or steps.size() == 0) {
+      Runtime.trap("Cannot add task");
+    };
+
+    // Create new task
+    let newTask : Task = {
+      id = nextTaskId;
+      title;
+      description;
+      category;
+      creditReward;
+      steps;
+      isDaily;
+    };
+
+    tasks.add(nextTaskId, newTask);
+
+    // Update daily challenge if needed
+    if (isDaily) {
+      dailyChallengeTaskId := ?nextTaskId;
+    };
+
+    let taskId = nextTaskId;
+    nextTaskId += 1;
+    taskId;
   };
 };

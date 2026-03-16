@@ -6,87 +6,41 @@ import {
   createRoute,
   createRouter,
 } from "@tanstack/react-router";
-import Layout from "./components/Layout";
-import AboutPage from "./pages/AboutPage";
-import AuthPage from "./pages/AuthPage";
-import ContactPage from "./pages/ContactPage";
-import DashboardPage from "./pages/DashboardPage";
-import HomePage from "./pages/HomePage";
-import LeaderboardPage from "./pages/LeaderboardPage";
-import TaskDetailPage from "./pages/TaskDetailPage";
-import TasksPage from "./pages/TasksPage";
+import CustomerDisplayPage from "./pages/CustomerDisplayPage";
+import POSDashboard from "./pages/POSDashboard";
+import POSLoginPage from "./pages/POSLoginPage";
 
-// Root route with layout
 const rootRoute = createRootRoute({
   component: () => (
-    <div className="min-h-screen bg-background text-foreground">
-      <Toaster
-        theme="dark"
-        toastOptions={{
-          style: {
-            background: "oklch(0.14 0.025 264)",
-            border: "1px solid oklch(0.62 0.22 255 / 0.3)",
-            color: "oklch(0.93 0.015 264)",
-          },
-        }}
-      />
-      <Layout>
-        <Outlet />
-      </Layout>
+    <div className="min-h-dvh bg-background text-foreground">
+      <Toaster position="top-center" />
+      <Outlet />
     </div>
   ),
 });
 
-const indexRoute = createRoute({
+const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: HomePage,
+  component: POSLoginPage,
 });
-const tasksRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/tasks",
-  component: TasksPage,
-});
-const taskDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/tasks/$id",
-  component: TaskDetailPage,
-});
+
 const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/dashboard",
-  component: DashboardPage,
+  component: POSDashboard,
 });
-const leaderboardRoute = createRoute({
+
+const customerDisplayRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/leaderboard",
-  component: LeaderboardPage,
-});
-const authRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/auth",
-  component: AuthPage,
-});
-const aboutRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/about",
-  component: AboutPage,
-});
-const contactRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/contact",
-  component: ContactPage,
+  path: "/customer-display",
+  component: CustomerDisplayPage,
 });
 
 const routeTree = rootRoute.addChildren([
-  indexRoute,
-  tasksRoute,
-  taskDetailRoute,
+  loginRoute,
   dashboardRoute,
-  leaderboardRoute,
-  authRoute,
-  aboutRoute,
-  contactRoute,
+  customerDisplayRoute,
 ]);
 
 const router = createRouter({ routeTree });
