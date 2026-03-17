@@ -23,9 +23,10 @@ import {
   TrendingUp,
   UserPlus,
   X,
+  Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 function formatCurrency(amount: number): string {
@@ -42,6 +43,14 @@ function formatDate(): string {
     timeStyle: "short",
   }).format(new Date());
 }
+
+const QUICK_PRODUCTS = [
+  { name: "Dudh", emoji: "🥛" },
+  { name: "Buffalo Ghee", emoji: "🧈" },
+  { name: "Dahi", emoji: "🍶" },
+  { name: "Tak", emoji: "💧" },
+  { name: "Lassi", emoji: "🥤" },
+];
 
 export default function POSDashboard() {
   const navigate = useNavigate();
@@ -78,6 +87,9 @@ export default function POSDashboard() {
   const [priceError, setPriceError] = useState("");
   const [currentTime, setCurrentTime] = useState(formatDate());
   const [dailySales, setDailySales] = useState({ total: 0, count: 0 });
+  const priceInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const addProductFormRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -100,6 +112,13 @@ export default function POSDashboard() {
 
   const total = cart.reduce((a, c) => a + c.price, 0);
 
+  const handleQuickSelect = useCallback((name: string) => {
+    setProductName(name);
+    setNameError("");
+    setProductPrice("");
+    setTimeout(() => priceInputRef.current?.focus(), 50);
+  }, []);
+
   const handleAddProduct = useCallback(() => {
     let valid = true;
     if (!productName.trim()) {
@@ -120,6 +139,20 @@ export default function POSDashboard() {
     setProductName("");
     setProductPrice("");
   }, [productName, productPrice, addItem]);
+
+  const handleAddNew = useCallback(() => {
+    setProductName("");
+    setProductPrice("");
+    setNameError("");
+    setPriceError("");
+    setTimeout(() => {
+      addProductFormRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      nameInputRef.current?.focus();
+    }, 50);
+  }, []);
 
   const handlePrintBill = useCallback(async () => {
     const billNo = `B${String(Date.now()).slice(-6)}`;
@@ -293,8 +326,84 @@ export default function POSDashboard() {
               </div>
             </motion.div>
 
+            {/* Quick Add Presets */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.03 }}
+              className="pos-card p-4"
+            >
+              <h2 className="font-display font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
+                <Zap
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.50 0.20 300)" }}
+                />
+                Quick Add
+              </h2>
+              <div
+                className="grid grid-cols-2 sm:grid-cols-3 gap-2"
+                data-ocid="pos.quick_add.panel"
+              >
+                {QUICK_PRODUCTS.map((p, idx) => (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => handleQuickSelect(p.name)}
+                    className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all active:scale-95 hover:shadow-md ${
+                      productName === p.name
+                        ? "text-white shadow-purple-glow"
+                        : "border-border bg-secondary text-foreground hover:border-purple-400/50"
+                    }`}
+                    style={
+                      productName === p.name
+                        ? {
+                            background: "oklch(0.50 0.20 300)",
+                            borderColor: "oklch(0.50 0.20 300)",
+                          }
+                        : {}
+                    }
+                    data-ocid={`pos.quick_add.button.${idx + 1}`}
+                  >
+                    <span className="text-lg leading-none">{p.emoji}</span>
+                    <span>{p.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Add New Product (+) button */}
+              <div className="flex justify-center mt-3">
+                <motion.button
+                  type="button"
+                  onClick={handleAddNew}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.92 }}
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-purple-glow transition-shadow hover:shadow-lg"
+                  style={{ background: "oklch(0.50 0.20 300)" }}
+                  data-ocid="pos.quick_add_new.button"
+                  aria-label="Add new product"
+                  title="Add a new product"
+                >
+                  <Plus className="w-6 h-6" />
+                </motion.button>
+              </div>
+
+              {productName &&
+                QUICK_PRODUCTS.some((p) => p.name === productName) && (
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    <span
+                      style={{ color: "oklch(0.50 0.20 300)" }}
+                      className="font-semibold"
+                    >
+                      {productName}
+                    </span>{" "}
+                    selected — enter amount below and tap Add
+                  </p>
+                )}
+            </motion.div>
+
             {/* Add Product Form */}
             <motion.div
+              ref={addProductFormRef}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
@@ -310,6 +419,7 @@ export default function POSDashboard() {
               <div className="space-y-3">
                 <div>
                   <input
+                    ref={nameInputRef}
                     type="text"
                     value={productName}
                     onChange={(e) => setProductName(e.target.value)}
@@ -330,6 +440,7 @@ export default function POSDashboard() {
                 <div className="relative">
                   <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
+                    ref={priceInputRef}
                     type="number"
                     value={productPrice}
                     onChange={(e) => setProductPrice(e.target.value)}
