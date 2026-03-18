@@ -22,32 +22,28 @@ function buildQRUrl(total: number): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&ecc=M&data=${encodeURIComponent(upi)}`;
 }
 
+const EMPTY_DATA: DisplayData = { cart: [], total: 0, showQR: false, ts: 0 };
+
 export default function CustomerDisplayPage() {
-  const [data, setData] = useState<DisplayData>({
-    cart: [],
-    total: 0,
-    showQR: false,
-    ts: 0,
-  });
+  const [data, setData] = useState<DisplayData>(EMPTY_DATA);
 
   useEffect(() => {
     function loadData() {
       try {
         const raw = localStorage.getItem("ndd_display");
         if (raw) {
-          const parsed: DisplayData = JSON.parse(raw);
-          setData(parsed);
+          setData(JSON.parse(raw) as DisplayData);
         }
       } catch {
-        // ignore
+        // ignore parse errors
       }
     }
 
     loadData();
 
-    function onStorage(e: StorageEvent) {
+    const onStorage = (e: StorageEvent) => {
       if (e.key === "ndd_display") loadData();
-    }
+    };
 
     window.addEventListener("storage", onStorage);
     const interval = setInterval(loadData, 2000);
@@ -58,6 +54,7 @@ export default function CustomerDisplayPage() {
   }, []);
 
   const qrUrl = data.showQR && data.total > 0 ? buildQRUrl(data.total) : null;
+  const hasItems = data.cart.length > 0 || data.total > 0;
 
   return (
     <div
@@ -68,7 +65,7 @@ export default function CustomerDisplayPage() {
       }}
       data-ocid="customer.display.panel"
     >
-      {/* Decorative background */}
+      {/* Decorative blobs */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -100,22 +97,23 @@ export default function CustomerDisplayPage() {
           Nanaji Dudh Dairy
         </h1>
         <p className="text-white/60 text-sm mt-1">
-          Welcome · UPI: 7820957013@ibl
+          Welcome &middot; UPI: 7820957013@ibl
         </p>
       </motion.div>
 
       {/* Main Content */}
       <AnimatePresence mode="wait">
-        {data.total === 0 && data.cart.length === 0 ? (
+        {!hasItems ? (
           <motion.div
             key="waiting"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="text-center relative z-10"
+            data-ocid="customer.display.empty_state"
           >
             <div
-              className="rounded-3xl px-12 py-10 text-center"
+              className="rounded-3xl px-12 py-10"
               style={{
                 background: "oklch(1 0 0 / 0.06)",
                 backdropFilter: "blur(20px)",
@@ -145,7 +143,6 @@ export default function CustomerDisplayPage() {
                 border: "1px solid oklch(1 0 0 / 0.15)",
               }}
             >
-              {/* Items */}
               {data.cart.length > 0 && (
                 <div className="space-y-2 mb-4">
                   {data.cart.map((item) => (
@@ -166,7 +163,6 @@ export default function CustomerDisplayPage() {
                 </div>
               )}
 
-              {/* Total */}
               <div className="text-center">
                 <p className="text-white/50 text-xs uppercase tracking-widest mb-2">
                   Total Amount
@@ -199,6 +195,7 @@ export default function CustomerDisplayPage() {
                     backdropFilter: "blur(24px)",
                     border: "1px solid oklch(1 0 0 / 0.15)",
                   }}
+                  data-ocid="customer.display.card"
                 >
                   <p className="text-white/60 text-sm mb-4 font-medium">
                     Scan &amp; Pay using UPI
@@ -212,13 +209,14 @@ export default function CustomerDisplayPage() {
                   </div>
                   <p className="text-white/50 text-xs mt-3">7820957013@ibl</p>
                   <p className="text-white/40 text-xs mt-1">
-                    Google Pay · PhonePe · Paytm · Any UPI App
+                    Google Pay &middot; PhonePe &middot; Paytm &middot; Any UPI
+                    App
                   </p>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* No QR yet placeholder */}
+            {/* QR placeholder */}
             {!qrUrl && (
               <div
                 className="rounded-3xl p-6 text-center"
@@ -236,9 +234,9 @@ export default function CustomerDisplayPage() {
         )}
       </AnimatePresence>
 
-      {/* Footer */}
       <p className="absolute bottom-4 text-white/25 text-xs">
-        © {new Date().getFullYear()} Nanaji Dudh Dairy
+        &copy; {new Date().getFullYear()} Nanaji Dudh Dairy. All Rights
+        Reserved.
       </p>
     </div>
   );

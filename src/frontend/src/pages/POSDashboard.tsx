@@ -12,9 +12,11 @@ import {
   IndianRupee,
   Loader2,
   LogOut,
+  MessageCircle,
   Milk,
   Monitor,
   Moon,
+  Phone,
   Plus,
   Printer,
   QrCode,
@@ -29,21 +31,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
-
-function formatDate(): string {
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date());
-}
-
 const QUICK_PRODUCTS = [
   { name: "Dudh", emoji: "🥛" },
   { name: "Buffalo Ghee", emoji: "🧈" },
@@ -52,8 +39,46 @@ const QUICK_PRODUCTS = [
   { name: "Lassi", emoji: "🥤" },
 ];
 
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    minimumFractionDigits: 0,
+  }).format(amount);
+}
+
+function formatDateTime(): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date());
+}
+
+function buildWhatsAppMessage(
+  cart: { name: string; price: number }[],
+  total: number,
+  dateTime: string,
+): string {
+  const lines: string[] = [];
+  lines.push("*Nanaji Dudh Dairy*");
+  lines.push("Bill Receipt");
+  lines.push(dateTime);
+  lines.push("");
+  lines.push("-------------------------------");
+  cart.forEach((item, idx) => {
+    lines.push(`${idx + 1}. ${item.name}  Rs.${item.price.toFixed(0)}`);
+  });
+  lines.push("-------------------------------");
+  lines.push(`*Total: Rs.${total.toFixed(0)}*`);
+  lines.push("");
+  lines.push("Pay via UPI: 7820957013@ibl");
+  lines.push("Thank you for your purchase!");
+  return lines.join("\n");
+}
+
 export default function POSDashboard() {
   const navigate = useNavigate();
+
   const {
     isLoggedIn,
     cart,
@@ -70,6 +95,8 @@ export default function POSDashboard() {
     toggleDarkMode,
     logout,
     getDailySales,
+    selectedPreset,
+    setSelectedPreset,
   } = usePOSStore();
 
   const {
@@ -79,49 +106,82 @@ export default function POSDashboard() {
     connect,
     disconnect,
     print,
+    isPrinting,
+    isConnecting,
+    isConnected,
   } = useBluetoothPrinter();
 
   const [productName, setProductName] = useState("");
   const [productPrice, setProductPrice] = useState("");
   const [nameError, setNameError] = useState("");
   const [priceError, setPriceError] = useState("");
-  const [currentTime, setCurrentTime] = useState(formatDate());
+  const [currentTime, setCurrentTime] = useState(formatDateTime);
   const [dailySales, setDailySales] = useState({ total: 0, count: 0 });
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [whatsappError, setWhatsappError] = useState("");
+
   const priceInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const addProductFormRef = useRef<HTMLDivElement>(null);
+  const addFormRef = useRef<HTMLDivElement>(null);
 
+  const total = cart.reduce((acc, item) => acc + item.price, 0);
+
+  // Redirect if not logged in
   useEffect(() => {
     if (!isLoggedIn) {
       navigate({ to: "/" });
-      return;
     }
-    setDailySales(getDailySales());
-  }, [isLoggedIn, navigate, getDailySales]);
+  }, [isLoggedIn, navigate]);
 
+  // Apply dark mode class
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(formatDate()), 30000);
-    return () => clearInterval(timer);
-  }, []);
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
 
+  // Load initial daily sales
+  useEffect(() => {
+    setDailySales(getDailySales());
+  }, [getDailySales]);
+
+  // Refresh daily sales after payment
   useEffect(() => {
     if (paymentSuccess) {
       setDailySales(getDailySales());
     }
   }, [paymentSuccess, getDailySales]);
 
-  const total = cart.reduce((a, c) => a + c.price, 0);
-
-  const handleQuickSelect = useCallback((name: string) => {
-    setProductName(name);
-    setNameError("");
-    setProductPrice("");
-    setTimeout(() => priceInputRef.current?.focus(), 50);
+  // Clock ticker
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(formatDateTime()), 30_000);
+    return () => clearInterval(timer);
   }, []);
+
+  // Sync productName when a preset is selected from store
+  useEffect(() => {
+    if (selectedPreset !== null) {
+      setProductName(selectedPreset);
+      setNameError("");
+    }
+  }, [selectedPreset]);
+
+  const handleQuickSelect = useCallback(
+    (name: string) => {
+      setSelectedPreset(name);
+      setProductPrice("");
+      setPriceError("");
+      setTimeout(() => priceInputRef.current?.focus(), 50);
+    },
+    [setSelectedPreset],
+  );
 
   const handleAddProduct = useCallback(() => {
     let valid = true;
-    if (!productName.trim()) {
+    const trimmedName = productName.trim();
+    if (!trimmedName) {
       setNameError("Product name is required");
       valid = false;
     } else {
@@ -135,123 +195,201 @@ export default function POSDashboard() {
       setPriceError("");
     }
     if (!valid) return;
-    addItem(productName.trim(), price);
+    addItem(trimmedName, price);
     setProductName("");
     setProductPrice("");
-  }, [productName, productPrice, addItem]);
+    setSelectedPreset(null);
+  }, [productName, productPrice, addItem, setSelectedPreset]);
 
   const handleAddNew = useCallback(() => {
     setProductName("");
     setProductPrice("");
     setNameError("");
     setPriceError("");
+    setSelectedPreset(null);
     setTimeout(() => {
-      addProductFormRef.current?.scrollIntoView({
+      addFormRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
       nameInputRef.current?.focus();
     }, 50);
-  }, []);
+  }, [setSelectedPreset]);
 
   const handlePrintBill = useCallback(async () => {
-    const billNo = `B${String(Date.now()).slice(-6)}`;
-    const bytes = buildReceiptBytes(cart, total, billNo);
-    const success = await print(bytes);
-    if (success) {
-      toast.success("Receipt sent to printer!");
-    } else if (errorMsg) {
-      toast.error(errorMsg);
+    if (!isConnected) {
+      toast.error("Connect 58Printer via Bluetooth first");
+      return;
     }
-  }, [cart, total, print, errorMsg]);
+    if (cart.length === 0) {
+      toast.error("Cart is empty");
+      return;
+    }
+    const billNo = `B${String(Date.now()).slice(-6)}`;
+    const data = buildReceiptBytes(cart, total, billNo);
+    const ok = await print(data);
+    if (ok) {
+      toast.success("Receipt sent to 58Printer!");
+    } else {
+      toast.error(errorMsg ?? "Print failed");
+    }
+  }, [isConnected, cart, total, print, errorMsg]);
+
+  const handleSendWhatsApp = useCallback(() => {
+    if (cart.length === 0) {
+      toast.error("Cart is empty — add products first");
+      return;
+    }
+    const raw = whatsappNumber.trim().replace(/[^0-9+]/g, "");
+    if (!raw || raw.replace(/\+/g, "").length < 10) {
+      setWhatsappError("Enter a valid 10-digit WhatsApp number");
+      return;
+    }
+    setWhatsappError("");
+    // Ensure country code — default to +91 (India) if no + prefix
+    const withCode = raw.startsWith("+") ? raw : `91${raw}`;
+    const message = buildWhatsAppMessage(cart, total, currentTime);
+    const url = `https://wa.me/${withCode}?text=${encodeURIComponent(message)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    toast.success("Opening WhatsApp to send bill...");
+  }, [cart, total, whatsappNumber, currentTime]);
 
   function handleLogout() {
     logout();
     navigate({ to: "/" });
   }
 
-  const isPrinting = btStatus === "printing";
-  const isConnecting = btStatus === "connecting";
-  const isConnected = btStatus === "connected" || btStatus === "printing";
   const canPrint = isConnected && cart.length > 0 && !isPrinting;
+
+  // WhatsApp Send Bill section — shown in all bill states
+  const WhatsAppSection = (
+    <div
+      className="px-6 py-4 border-t border-border"
+      data-ocid="pos.whatsapp.section"
+    >
+      <h3 className="font-semibold text-sm text-foreground mb-2 flex items-center gap-2">
+        <MessageCircle className="w-4 h-4" style={{ color: "#25D366" }} />
+        Send Bill on WhatsApp
+      </h3>
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="tel"
+            value={whatsappNumber}
+            onChange={(e) => {
+              setWhatsappNumber(e.target.value);
+              setWhatsappError("");
+            }}
+            onKeyDown={(e) => e.key === "Enter" && handleSendWhatsApp()}
+            placeholder="Customer WhatsApp no."
+            className="pos-input pl-9 text-sm"
+            maxLength={15}
+            data-ocid="pos.whatsapp_number.input"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={handleSendWhatsApp}
+          disabled={cart.length === 0}
+          className="px-4 py-2.5 rounded-xl font-semibold text-white text-sm flex items-center gap-1.5 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+          style={{ background: "#25D366" }}
+          data-ocid="pos.send_whatsapp.button"
+        >
+          <MessageCircle className="w-4 h-4" />
+          Send
+        </button>
+      </div>
+      {whatsappError && (
+        <p
+          className="text-xs text-destructive mt-1"
+          data-ocid="pos.whatsapp.error_state"
+        >
+          {whatsappError}
+        </p>
+      )}
+      <p className="text-xs text-muted-foreground mt-1.5">
+        Opens WhatsApp with bill pre-filled. One tap to send.
+      </p>
+    </div>
+  );
 
   return (
     <div className="min-h-dvh bg-background">
-      {/* Header */}
+      {/* ─── Header ─── */}
       <header
-        className="sticky top-0 z-30 border-b border-border px-4 py-3 flex items-center justify-between"
+        className="sticky top-0 z-30 border-b border-border px-4 py-3 flex items-center justify-between gap-2"
         style={{ background: "oklch(0.50 0.20 300)" }}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
             <Milk className="w-5 h-5 text-white" />
           </div>
-          <div>
-            <h1 className="font-display font-bold text-white text-base leading-tight">
+          <div className="min-w-0">
+            <h1 className="font-display font-bold text-white text-base leading-tight truncate">
               Nanaji Dudh Dairy
             </h1>
             <p className="text-white/70 text-xs">POS Terminal</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Bluetooth Status */}
-          <div className="flex items-center">
-            {btStatus === "disconnected" && (
-              <button
-                type="button"
-                onClick={connect}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-medium transition-colors"
-                data-ocid="pos.bluetooth_connect.button"
-                title="Connect 58Printer via Bluetooth"
-              >
-                <Bluetooth className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Connect 58Printer</span>
-              </button>
-            )}
-            {isConnecting && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 text-white text-xs">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span className="hidden sm:inline">Connecting...</span>
-              </div>
-            )}
-            {isConnected && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 text-white text-xs">
-                {isPrinting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
-                )}
-                <span className="hidden sm:inline max-w-[80px] truncate">
-                  {isPrinting ? "Printing..." : (deviceName ?? "Printer")}
-                </span>
-                {!isPrinting && (
-                  <button
-                    type="button"
-                    onClick={disconnect}
-                    className="ml-1 text-white/60 hover:text-white transition-colors text-xs underline"
-                    data-ocid="pos.bluetooth_disconnect.button"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            )}
-            {btStatus === "error" && (
-              <button
-                type="button"
-                onClick={connect}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-white text-xs font-medium transition-colors"
-                data-ocid="pos.bluetooth_connect.button"
-                title={errorMsg ?? "Printer error"}
-              >
-                <BluetoothOff className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline max-w-[80px] truncate">
-                  {errorMsg ? `${errorMsg.slice(0, 16)}…` : "Retry 58Printer"}
-                </span>
-              </button>
-            )}
-          </div>
 
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Bluetooth Button */}
+          {btStatus === "disconnected" && (
+            <button
+              type="button"
+              onClick={connect}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-medium transition-colors"
+              data-ocid="pos.bluetooth_connect.button"
+              title="Connect 58Printer via Bluetooth"
+            >
+              <Bluetooth className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Connect 58Printer</span>
+            </button>
+          )}
+          {isConnecting && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 text-white text-xs">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span className="hidden sm:inline">Connecting...</span>
+            </div>
+          )}
+          {isConnected && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 text-white text-xs">
+              {isPrinting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <span className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />
+              )}
+              <span className="hidden sm:inline max-w-[80px] truncate">
+                {isPrinting ? "Printing..." : (deviceName ?? "58Printer")}
+              </span>
+              {!isPrinting && (
+                <button
+                  type="button"
+                  onClick={disconnect}
+                  className="ml-1 text-white/60 hover:text-white transition-colors"
+                  aria-label="Disconnect printer"
+                  data-ocid="pos.bluetooth_disconnect.button"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          )}
+          {btStatus === "error" && (
+            <button
+              type="button"
+              onClick={connect}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-white text-xs font-medium transition-colors"
+              data-ocid="pos.bluetooth_connect.button"
+              title={errorMsg ?? "Printer error — click to retry"}
+            >
+              <BluetoothOff className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Retry 58Printer</span>
+            </button>
+          )}
+
+          {/* Customer Display */}
           <button
             type="button"
             onClick={() =>
@@ -263,12 +401,14 @@ export default function POSDashboard() {
             <Monitor className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Customer Display</span>
           </button>
+
+          {/* Dark Mode */}
           <button
             type="button"
             onClick={toggleDarkMode}
             className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
-            data-ocid="pos.dark_mode.toggle"
             aria-label="Toggle dark mode"
+            data-ocid="pos.dark_mode.toggle"
           >
             {darkMode ? (
               <Sun className="w-4 h-4" />
@@ -276,27 +416,31 @@ export default function POSDashboard() {
               <Moon className="w-4 h-4" />
             )}
           </button>
+
+          {/* Logout */}
           <button
             type="button"
             onClick={handleLogout}
             className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
-            data-ocid="pos.logout.button"
             aria-label="Logout"
+            data-ocid="pos.logout.button"
           >
             <LogOut className="w-4 h-4" />
           </button>
         </div>
       </header>
 
+      {/* ─── Main Layout ─── */}
       <div className="max-w-6xl mx-auto p-4 lg:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* LEFT: Product Entry */}
+          {/* ══ LEFT COLUMN ══ */}
           <div className="space-y-4">
-            {/* Daily Sales Summary */}
+            {/* Daily Sales */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               className="pos-card p-4 flex items-center gap-4"
+              data-ocid="pos.daily_sales.card"
             >
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -330,7 +474,7 @@ export default function POSDashboard() {
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.03 }}
+              transition={{ delay: 0.04 }}
               className="pos-card p-4"
             >
               <h2 className="font-display font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
@@ -344,44 +488,47 @@ export default function POSDashboard() {
                 className="grid grid-cols-2 sm:grid-cols-3 gap-2"
                 data-ocid="pos.quick_add.panel"
               >
-                {QUICK_PRODUCTS.map((p, idx) => (
-                  <button
-                    key={p.name}
-                    type="button"
-                    onClick={() => handleQuickSelect(p.name)}
-                    className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all active:scale-95 hover:shadow-md ${
-                      productName === p.name
-                        ? "text-white shadow-purple-glow"
-                        : "border-border bg-secondary text-foreground hover:border-purple-400/50"
-                    }`}
-                    style={
-                      productName === p.name
-                        ? {
-                            background: "oklch(0.50 0.20 300)",
-                            borderColor: "oklch(0.50 0.20 300)",
-                          }
-                        : {}
-                    }
-                    data-ocid={`pos.quick_add.button.${idx + 1}`}
-                  >
-                    <span className="text-lg leading-none">{p.emoji}</span>
-                    <span>{p.name}</span>
-                  </button>
-                ))}
+                {QUICK_PRODUCTS.map((p, idx) => {
+                  const active = productName === p.name;
+                  return (
+                    <button
+                      key={p.name}
+                      type="button"
+                      onClick={() => handleQuickSelect(p.name)}
+                      className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all active:scale-95 hover:shadow-md ${
+                        active
+                          ? "text-white shadow-purple-glow"
+                          : "border-border bg-secondary text-foreground hover:border-purple-400/50"
+                      }`}
+                      style={
+                        active
+                          ? {
+                              background: "oklch(0.50 0.20 300)",
+                              borderColor: "oklch(0.50 0.20 300)",
+                            }
+                          : {}
+                      }
+                      data-ocid={`pos.quick_add.button.${idx + 1}`}
+                    >
+                      <span className="text-lg leading-none">{p.emoji}</span>
+                      <span>{p.name}</span>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Add New Product (+) button */}
+              {/* + Add New Product */}
               <div className="flex justify-center mt-3">
                 <motion.button
                   type="button"
                   onClick={handleAddNew}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.92 }}
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-purple-glow transition-shadow hover:shadow-lg"
+                  className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-purple-glow"
                   style={{ background: "oklch(0.50 0.20 300)" }}
+                  aria-label="Add new custom product"
+                  title="Add a custom product"
                   data-ocid="pos.quick_add_new.button"
-                  aria-label="Add new product"
-                  title="Add a new product"
                 >
                   <Plus className="w-6 h-6" />
                 </motion.button>
@@ -403,10 +550,10 @@ export default function POSDashboard() {
 
             {/* Add Product Form */}
             <motion.div
-              ref={addProductFormRef}
+              ref={addFormRef}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
+              transition={{ delay: 0.07 }}
               className="pos-card p-5"
             >
               <h2 className="font-display font-semibold text-foreground text-base mb-4 flex items-center gap-2">
@@ -422,7 +569,10 @@ export default function POSDashboard() {
                     ref={nameInputRef}
                     type="text"
                     value={productName}
-                    onChange={(e) => setProductName(e.target.value)}
+                    onChange={(e) => {
+                      setProductName(e.target.value);
+                      setNameError("");
+                    }}
                     onKeyDown={(e) => e.key === "Enter" && handleAddProduct()}
                     placeholder="Product name (e.g. Fresh Milk)"
                     className="pos-input"
@@ -437,20 +587,26 @@ export default function POSDashboard() {
                     </p>
                   )}
                 </div>
-                <div className="relative">
-                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input
-                    ref={priceInputRef}
-                    type="number"
-                    value={productPrice}
-                    onChange={(e) => setProductPrice(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddProduct()}
-                    placeholder="Price"
-                    min="0"
-                    step="0.5"
-                    className="pos-input pl-9"
-                    data-ocid="pos.product_price.input"
-                  />
+
+                <div>
+                  <div className="relative">
+                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <input
+                      ref={priceInputRef}
+                      type="number"
+                      value={productPrice}
+                      onChange={(e) => {
+                        setProductPrice(e.target.value);
+                        setPriceError("");
+                      }}
+                      onKeyDown={(e) => e.key === "Enter" && handleAddProduct()}
+                      placeholder="Price"
+                      min="0"
+                      step="0.5"
+                      className="pos-input pl-9"
+                      data-ocid="pos.product_price.input"
+                    />
+                  </div>
                   {priceError && (
                     <p
                       className="text-xs text-destructive mt-1"
@@ -460,6 +616,7 @@ export default function POSDashboard() {
                     </p>
                   )}
                 </div>
+
                 <div className="flex gap-3">
                   <button
                     type="button"
@@ -485,25 +642,25 @@ export default function POSDashboard() {
               </div>
             </motion.div>
 
-            {/* Product Table */}
+            {/* Cart Items */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
               className="pos-card overflow-hidden"
             >
-              <div className="px-5 py-4 border-b border-border">
+              <div className="px-5 py-4 border-b border-border flex items-center gap-2">
                 <h2 className="font-display font-semibold text-foreground text-base">
                   Cart Items
-                  {cart.length > 0 && (
-                    <span
-                      className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold text-white"
-                      style={{ background: "oklch(0.50 0.20 300)" }}
-                    >
-                      {cart.length}
-                    </span>
-                  )}
                 </h2>
+                {cart.length > 0 && (
+                  <span
+                    className="inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold text-white"
+                    style={{ background: "oklch(0.50 0.20 300)" }}
+                  >
+                    {cart.length}
+                  </span>
+                )}
               </div>
 
               {cart.length === 0 ? (
@@ -529,44 +686,46 @@ export default function POSDashboard() {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {cart.map((item, idx) => (
-                    <motion.div
-                      key={item.id}
-                      initial={{ opacity: 0, x: -12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 12 }}
-                      className="flex items-center gap-3 px-5 py-3.5"
-                      data-ocid={`pos.cart.item.${idx + 1}`}
-                    >
-                      <span className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-secondary-foreground flex-shrink-0">
-                        {idx + 1}
-                      </span>
-                      <span className="flex-1 font-medium text-foreground text-sm truncate">
-                        {item.name}
-                      </span>
-                      <span
-                        className="font-semibold text-sm flex-shrink-0"
-                        style={{ color: "oklch(0.50 0.20 300)" }}
+                  <AnimatePresence>
+                    {cart.map((item, idx) => (
+                      <motion.div
+                        key={item.id}
+                        initial={{ opacity: 0, x: -12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 12, height: 0 }}
+                        className="flex items-center gap-3 px-5 py-3.5"
+                        data-ocid={`pos.cart.item.${idx + 1}`}
                       >
-                        {formatCurrency(item.price)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeItem(item.id)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
-                        data-ocid={`pos.remove_item.button.${idx + 1}`}
-                        aria-label={`Remove ${item.name}`}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </motion.div>
-                  ))}
+                        <span className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-secondary-foreground flex-shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="flex-1 font-medium text-foreground text-sm truncate">
+                          {item.name}
+                        </span>
+                        <span
+                          className="font-semibold text-sm flex-shrink-0"
+                          style={{ color: "oklch(0.50 0.20 300)" }}
+                        >
+                          {formatCurrency(item.price)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+                          aria-label={`Remove ${item.name}`}
+                          data-ocid={`pos.remove_item.button.${idx + 1}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
                 </div>
               )}
             </motion.div>
           </div>
 
-          {/* RIGHT: Bill Summary */}
+          {/* ══ RIGHT COLUMN ══ */}
           <div className="space-y-4">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -604,8 +763,10 @@ export default function POSDashboard() {
                         key={item.id}
                         className="flex justify-between items-center text-sm"
                       >
-                        <span className="text-foreground">{item.name}</span>
-                        <span className="font-medium text-foreground">
+                        <span className="text-foreground truncate pr-2">
+                          {item.name}
+                        </span>
+                        <span className="font-medium text-foreground flex-shrink-0">
                           {formatCurrency(item.price)}
                         </span>
                       </div>
@@ -635,7 +796,10 @@ export default function POSDashboard() {
                 </div>
               </div>
 
-              {/* Generate QR + Print Bill buttons */}
+              {/* ── WhatsApp Send Bill (always visible) ── */}
+              {WhatsAppSection}
+
+              {/* ── Actions: Pre-QR ── */}
               {!showQR && !paymentSuccess && (
                 <div className="px-6 pb-5 space-y-3">
                   <button
@@ -650,7 +814,6 @@ export default function POSDashboard() {
                     Generate QR Code
                   </button>
 
-                  {/* Print Bill button */}
                   <button
                     type="button"
                     onClick={handlePrintBill}
@@ -659,9 +822,7 @@ export default function POSDashboard() {
                     style={{
                       borderColor: "oklch(0.50 0.20 300)",
                       color: "oklch(0.50 0.20 300)",
-                      background: "transparent",
                     }}
-                    data-ocid="pos.print_bill.button"
                     title={
                       !isConnected
                         ? "Connect 58Printer via Bluetooth first"
@@ -669,6 +830,7 @@ export default function POSDashboard() {
                           ? "Add items to print"
                           : "Print bill on 58Printer"
                     }
+                    data-ocid="pos.print_bill.button"
                   >
                     {isPrinting ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -681,27 +843,26 @@ export default function POSDashboard() {
                     )}
                   </button>
 
-                  {/* Hint when printer not connected */}
                   {!isConnected && cart.length > 0 && (
                     <p className="text-xs text-muted-foreground text-center">
                       <Bluetooth className="inline w-3 h-3 mr-1" />
-                      Connect 58Printer via Bluetooth in the header to print
+                      Connect 58Printer via Bluetooth to enable printing
                     </p>
                   )}
                 </div>
               )}
 
-              {/* QR Code Display */}
+              {/* ── Actions: QR Shown ── */}
               <AnimatePresence>
                 {showQR && !paymentSuccess && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, scale: 0.92 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
+                    exit={{ opacity: 0, scale: 0.92 }}
                     className="px-6 pb-6"
                   >
                     <div
-                      className="rounded-2xl p-5 text-center"
+                      className="rounded-2xl p-5 text-center mb-3"
                       style={{ background: "oklch(0.50 0.20 300 / 0.06)" }}
                     >
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
@@ -726,16 +887,14 @@ export default function POSDashboard() {
                       </p>
                     </div>
 
-                    {/* Print Bill in QR state */}
                     <button
                       type="button"
                       onClick={handlePrintBill}
                       disabled={!canPrint}
-                      className="mt-3 w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2"
+                      className="w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2 mb-3"
                       style={{
                         borderColor: "oklch(0.50 0.20 300)",
                         color: "oklch(0.50 0.20 300)",
-                        background: "transparent",
                       }}
                       data-ocid="pos.print_bill.button"
                     >
@@ -750,7 +909,7 @@ export default function POSDashboard() {
                     <button
                       type="button"
                       onClick={confirmPayment}
-                      className="mt-3 w-full py-3.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 shadow-card"
+                      className="w-full py-3.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
                       style={{ background: "oklch(0.42 0.18 160)" }}
                       data-ocid="pos.payment_received.button"
                     >
@@ -761,18 +920,18 @@ export default function POSDashboard() {
                 )}
               </AnimatePresence>
 
-              {/* Payment Success */}
+              {/* ── Actions: Payment Success ── */}
               <AnimatePresence>
                 {paymentSuccess && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
+                    initial={{ opacity: 0, scale: 0.92 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
                     className="px-6 pb-6"
                     data-ocid="pos.payment.success_state"
                   >
                     <div
-                      className="rounded-2xl p-6 text-center"
+                      className="rounded-2xl p-6 text-center mb-4"
                       style={{ background: "oklch(0.42 0.18 160 / 0.08)" }}
                     >
                       <motion.div
@@ -802,16 +961,14 @@ export default function POSDashboard() {
                       </p>
                     </div>
 
-                    {/* Print Receipt after payment */}
                     <button
                       type="button"
                       onClick={handlePrintBill}
                       disabled={!isConnected || isPrinting}
-                      className="mt-4 w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2"
+                      className="w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2 mb-3"
                       style={{
                         borderColor: "oklch(0.50 0.20 300)",
                         color: "oklch(0.50 0.20 300)",
-                        background: "transparent",
                       }}
                       data-ocid="pos.print_bill.button"
                     >
@@ -826,7 +983,7 @@ export default function POSDashboard() {
                     <button
                       type="button"
                       onClick={newCustomer}
-                      className="mt-3 w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 border border-border bg-secondary text-secondary-foreground"
+                      className="w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 border border-border bg-secondary text-secondary-foreground"
                       data-ocid="pos.new_customer.button"
                     >
                       <UserPlus className="w-5 h-5" />
@@ -837,17 +994,9 @@ export default function POSDashboard() {
               </AnimatePresence>
             </motion.div>
 
-            {/* Footer */}
+            {/* Copyright */}
             <p className="text-center text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()}. Built with love using{" "}
-              <a
-                href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-foreground"
-              >
-                caffeine.ai
-              </a>
+              All Rights Reserved. Nanaji Dudh Dairy &reg;&copy; 2026
             </p>
           </div>
         </div>

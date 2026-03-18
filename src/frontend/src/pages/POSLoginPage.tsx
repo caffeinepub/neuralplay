@@ -16,14 +16,16 @@ export default function POSLoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const login = usePOSStore((s) => s.login);
+  const darkMode = usePOSStore((s) => s.darkMode);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Apply dark mode from storage on mount
-    const dark = localStorage.getItem("ndd_dark") === "true";
-    if (dark) document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
-  }, []);
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
 
   function handleDemoLogin() {
     setEmail("demo@nanaji.com");
@@ -33,11 +35,16 @@ export default function POSLoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!email.trim() || !password) {
+      setError("Please enter your email and password.");
+      return;
+    }
     setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
+    // Simulate auth delay
+    await new Promise<void>((r) => setTimeout(r, 500));
     const valid = VALID_CREDENTIALS.find(
-      (c) => c.email === email.trim() && c.password === password,
+      (c) => c.email === email.trim().toLowerCase() && c.password === password,
     );
     if (valid) {
       login();
@@ -49,8 +56,8 @@ export default function POSLoginPage() {
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center p-4 relative overflow-hidden bg-background">
-      {/* Background gradient blobs */}
+    <div className="min-h-dvh flex flex-col items-center justify-center p-4 relative overflow-hidden bg-background">
+      {/* Background gradient */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -62,21 +69,19 @@ export default function POSLoginPage() {
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-full max-w-sm"
+        transition={{ duration: 0.45, ease: "easeOut" }}
+        className="w-full max-w-sm relative z-10"
       >
-        {/* Logo card */}
+        {/* Logo */}
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.85, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.1, duration: 0.4 }}
           className="text-center mb-8"
         >
           <div
             className="inline-flex items-center justify-center w-20 h-20 rounded-3xl mb-4 shadow-purple-glow"
-            style={{
-              background: "oklch(0.50 0.20 300)",
-            }}
+            style={{ background: "oklch(0.50 0.20 300)" }}
           >
             <Milk className="w-10 h-10 text-white" />
           </div>
@@ -88,13 +93,13 @@ export default function POSLoginPage() {
           </p>
         </motion.div>
 
-        {/* Login card */}
-        <div className="pos-card p-6 shadow-card">
+        {/* Card */}
+        <div className="pos-card p-6">
           <h2 className="font-display text-xl font-semibold text-foreground mb-6">
             Sign In
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {/* Email */}
             <div className="space-y-1.5">
               <label
@@ -104,7 +109,7 @@ export default function POSLoginPage() {
                 Email / Phone
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <input
                   id="login-email"
                   type="text"
@@ -113,7 +118,9 @@ export default function POSLoginPage() {
                   placeholder="demo@nanaji.com"
                   className="pos-input pl-10"
                   autoComplete="email"
-                  data-ocid="login.email.input"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  data-ocid="login.input"
                 />
               </div>
             </div>
@@ -127,7 +134,7 @@ export default function POSLoginPage() {
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <input
                   id="login-password"
                   type={showPass ? "text" : "password"}
@@ -136,12 +143,13 @@ export default function POSLoginPage() {
                   placeholder="••••••••"
                   className="pos-input pl-10 pr-10"
                   autoComplete="current-password"
-                  data-ocid="login.password.input"
+                  data-ocid="login.textarea"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPass((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPass ? "Hide password" : "Show password"}
                 >
                   {showPass ? (
                     <EyeOff className="w-4 h-4" />
@@ -156,13 +164,14 @@ export default function POSLoginPage() {
             {error && (
               <div
                 className="text-sm text-destructive bg-destructive/10 rounded-xl px-4 py-2.5 border border-destructive/20"
+                role="alert"
                 data-ocid="login.error_state"
               >
                 {error}
               </div>
             )}
 
-            {/* Login button */}
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
@@ -180,12 +189,12 @@ export default function POSLoginPage() {
               )}
             </button>
 
-            {/* Demo login */}
+            {/* Demo */}
             <button
               type="button"
               onClick={handleDemoLogin}
               className="w-full py-3 rounded-xl font-medium text-sm border border-border bg-secondary text-secondary-foreground hover:bg-accent transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
-              data-ocid="login.demo_button"
+              data-ocid="login.secondary_button"
             >
               <Zap
                 className="w-4 h-4"
@@ -197,7 +206,7 @@ export default function POSLoginPage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          © {new Date().getFullYear()} Nanaji Dudh Dairy. All rights reserved.
+          All Rights Reserved. Nanaji Dudh Dairy &reg;&copy; 2026
         </p>
       </motion.div>
     </div>
