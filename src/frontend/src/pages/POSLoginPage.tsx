@@ -56,7 +56,7 @@ export default function POSLoginPage() {
   }
 
   return (
-    <div className="min-h-dvh flex flex-col items-center justify-center p-8 relative overflow-hidden bg-background">
+    <div className="min-h-dvh flex flex-col items-center justify-center p-7 relative overflow-hidden bg-background">
       {/* Background gradient */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -94,7 +94,7 @@ export default function POSLoginPage() {
         </motion.div>
 
         {/* Card */}
-        <div className="pos-card p-10">
+        <div className="pos-card p-9">
           <h2 className="font-display text-xl font-semibold text-foreground mb-6">
             Sign In
           </h2>
@@ -116,7 +116,7 @@ export default function POSLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="demo@nanaji.com"
-                  className="pos-input pl-14"
+                  className="pos-input pl-13"
                   autoComplete="email"
                   autoCapitalize="none"
                   spellCheck={false}
@@ -141,7 +141,7 @@ export default function POSLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="pos-input pl-14 pr-14"
+                  className="pos-input pl-13 pr-13"
                   autoComplete="current-password"
                   data-ocid="login.textarea"
                 />
@@ -163,7 +163,7 @@ export default function POSLoginPage() {
             {/* Error */}
             {error && (
               <div
-                className="text-sm text-destructive bg-destructive/10 rounded-xl px-8 py-6 border border-destructive/20"
+                className="text-sm text-destructive bg-destructive/10 rounded-xl px-7 py-5 border border-destructive/20"
                 role="alert"
                 data-ocid="login.error_state"
               >
@@ -175,7 +175,7 @@ export default function POSLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-6 rounded-xl font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed shadow-purple-glow"
+              className="w-full py-5 rounded-xl font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed shadow-purple-glow"
               style={{ background: "oklch(0.50 0.20 300)" }}
               data-ocid="login.submit_button"
             >
@@ -193,7 +193,7 @@ export default function POSLoginPage() {
             <button
               type="button"
               onClick={handleDemoLogin}
-              className="w-full py-6 rounded-xl font-medium text-sm border border-border bg-secondary text-secondary-foreground hover:bg-accent transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
+              className="w-full py-5 rounded-xl font-medium text-sm border border-border bg-secondary text-secondary-foreground hover:bg-accent transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
               data-ocid="login.secondary_button"
             >
               <Zap

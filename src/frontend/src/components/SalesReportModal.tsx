@@ -84,7 +84,7 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
           >
             {/* Header */}
             <div
-              className="flex items-center justify-between px-8 py-6 flex-shrink-0"
+              className="flex items-center justify-between px-7 py-5 flex-shrink-0"
               style={{ background: "oklch(0.45 0.22 300)" }}
             >
               <div className="flex items-center gap-3">
@@ -111,9 +111,9 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-2 px-8 py-6 flex-shrink-0 border-b border-border bg-background">
+            <div className="grid grid-cols-3 gap-2 px-7 py-5 flex-shrink-0 border-b border-border bg-background">
               <div
-                className="rounded-xl p-6 text-center"
+                className="rounded-xl p-5 text-center"
                 style={{ background: "oklch(0.45 0.22 300 / 0.10)" }}
               >
                 <TrendingUp
@@ -129,7 +129,7 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
                 </p>
               </div>
               <div
-                className="rounded-xl p-6 text-center"
+                className="rounded-xl p-5 text-center"
                 style={{ background: "oklch(0.45 0.22 300 / 0.10)" }}
               >
                 <Calendar
@@ -147,7 +147,7 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
                 </p>
               </div>
               <div
-                className="rounded-xl p-6 text-center"
+                className="rounded-xl p-5 text-center"
                 style={{ background: "oklch(0.45 0.22 300 / 0.10)" }}
               >
                 <ShoppingBag
@@ -167,7 +167,7 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto">
               {sales.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full py-24 text-center px-10">
+                <div className="flex flex-col items-center justify-center h-full py-23 text-center px-9">
                   <div
                     className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
                     style={{ background: "oklch(0.45 0.22 300 / 0.10)" }}
@@ -185,7 +185,7 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
                   </p>
                 </div>
               ) : (
-                <div className="p-8 space-y-6">
+                <div className="p-7 space-y-6">
                   {/* Product Summary */}
                   {productSummary.length > 0 && (
                     <div>
@@ -205,16 +205,16 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
                                   background: "oklch(0.45 0.22 300 / 0.08)",
                                 }}
                               >
-                                <th className="text-left px-6 py-6 font-semibold text-foreground">
+                                <th className="text-left px-5 py-5 font-semibold text-foreground">
                                   #
                                 </th>
-                                <th className="text-left px-6 py-6 font-semibold text-foreground">
+                                <th className="text-left px-5 py-5 font-semibold text-foreground">
                                   Product
                                 </th>
-                                <th className="text-center px-6 py-6 font-semibold text-foreground">
+                                <th className="text-center px-5 py-5 font-semibold text-foreground">
                                   Qty
                                 </th>
-                                <th className="text-right px-6 py-6 font-semibold text-foreground">
+                                <th className="text-right px-5 py-5 font-semibold text-foreground">
                                   Revenue
                                 </th>
                               </tr>
@@ -225,17 +225,17 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
                                   key={p.name}
                                   className="border-t border-border"
                                 >
-                                  <td className="px-6 py-6 text-muted-foreground text-xs">
+                                  <td className="px-5 py-5 text-muted-foreground text-xs">
                                     {idx + 1}
                                   </td>
-                                  <td className="px-6 py-6 font-medium text-foreground">
+                                  <td className="px-5 py-5 font-medium text-foreground">
                                     {p.name}
                                   </td>
-                                  <td className="px-6 py-6 text-center text-muted-foreground">
+                                  <td className="px-5 py-5 text-center text-muted-foreground">
                                     {p.qty}
                                   </td>
                                   <td
-                                    className="px-6 py-6 text-right font-bold"
+                                    className="px-5 py-5 text-right font-bold"
                                     style={{ color: "oklch(0.45 0.22 300)" }}
                                   >
                                     {formatCurrency(p.revenue)}
@@ -267,7 +267,7 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
                         >
                           {/* Transaction header row */}
                           <div
-                            className="flex items-center justify-between px-6 py-5"
+                            className="flex items-center justify-between px-5 py-4"
                             style={{
                               background: "oklch(0.45 0.22 300 / 0.07)",
                             }}
@@ -296,11 +296,11 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
 
                           {/* Items list */}
                           {sale.items.length > 0 && (
-                            <div className="px-6 py-5 divide-y divide-border/60">
+                            <div className="px-5 py-4 divide-y divide-border/60">
                               {sale.items.map((item) => (
                                 <div
                                   key={item.id}
-                                  className="flex items-center justify-between py-5"
+                                  className="flex items-center justify-between py-4"
                                 >
                                   <span className="text-sm text-foreground">
                                     {item.name}
@@ -321,7 +321,7 @@ export default function SalesReportModal({ open, onClose, sales }: Props) {
 
                     {/* Grand Total footer */}
                     <div
-                      className="mt-4 rounded-xl px-8 py-6 flex items-center justify-between"
+                      className="mt-4 rounded-xl px-7 py-5 flex items-center justify-between"
                       style={{ background: "oklch(0.45 0.22 300 / 0.12)" }}
                     >
                       <span className="font-bold text-foreground">
