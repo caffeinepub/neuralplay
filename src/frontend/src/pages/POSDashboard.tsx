@@ -1,3 +1,4 @@
+import SalesReportModal from "@/components/SalesReportModal";
 import {
   buildReceiptBytes,
   useBluetoothPrinter,
@@ -5,6 +6,7 @@ import {
 import { usePOSStore } from "@/store/posStore";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  BarChart3,
   Bluetooth,
   BluetoothConnected,
   BluetoothOff,
@@ -95,6 +97,7 @@ export default function POSDashboard() {
     toggleDarkMode,
     logout,
     getDailySales,
+    getLast30DaysSales,
     selectedPreset,
     setSelectedPreset,
   } = usePOSStore();
@@ -119,6 +122,7 @@ export default function POSDashboard() {
   const [dailySales, setDailySales] = useState({ total: 0, count: 0 });
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [whatsappError, setWhatsappError] = useState("");
+  const [salesReportOpen, setSalesReportOpen] = useState(false);
 
   const priceInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -246,7 +250,6 @@ export default function POSDashboard() {
       return;
     }
     setWhatsappError("");
-    // Ensure country code — default to +91 (India) if no + prefix
     const withCode = raw.startsWith("+") ? raw : `91${raw}`;
     const message = buildWhatsAppMessage(cart, total, currentTime);
     const url = `https://wa.me/${withCode}?text=${encodeURIComponent(message)}`;
@@ -261,10 +264,10 @@ export default function POSDashboard() {
 
   const canPrint = isConnected && cart.length > 0 && !isPrinting;
 
-  // WhatsApp Send Bill section — shown in all bill states
+  // WhatsApp Send Bill section
   const WhatsAppSection = (
     <div
-      className="px-6 py-4 border-t border-border"
+      className="px-10 py-8 border-t border-border"
       data-ocid="pos.whatsapp.section"
     >
       <h3 className="font-semibold text-sm text-foreground mb-2 flex items-center gap-2">
@@ -283,7 +286,7 @@ export default function POSDashboard() {
             }}
             onKeyDown={(e) => e.key === "Enter" && handleSendWhatsApp()}
             placeholder="Customer WhatsApp no."
-            className="pos-input pl-9 text-sm"
+            className="pos-input pl-12 text-sm"
             maxLength={15}
             data-ocid="pos.whatsapp_number.input"
           />
@@ -292,7 +295,7 @@ export default function POSDashboard() {
           type="button"
           onClick={handleSendWhatsApp}
           disabled={cart.length === 0}
-          className="px-4 py-2.5 rounded-xl font-semibold text-white text-sm flex items-center gap-1.5 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+          className="px-8 py-6 rounded-xl font-semibold text-white text-sm flex items-center gap-1.5 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
           style={{ background: "#25D366" }}
           data-ocid="pos.send_whatsapp.button"
         >
@@ -318,7 +321,7 @@ export default function POSDashboard() {
     <div className="min-h-dvh bg-background">
       {/* ─── Header ─── */}
       <header
-        className="sticky top-0 z-30 border-b border-border px-4 py-3 flex items-center justify-between gap-2"
+        className="sticky top-0 z-30 border-b border-border px-8 py-6 flex items-center justify-between gap-2"
         style={{ background: "oklch(0.50 0.20 300)" }}
       >
         <div className="flex items-center gap-3 min-w-0">
@@ -339,7 +342,7 @@ export default function POSDashboard() {
             <button
               type="button"
               onClick={connect}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-medium transition-colors"
+              className="flex items-center gap-1.5 px-6 py-5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-medium transition-colors"
               data-ocid="pos.bluetooth_connect.button"
               title="Connect 58Printer via Bluetooth"
             >
@@ -348,13 +351,13 @@ export default function POSDashboard() {
             </button>
           )}
           {isConnecting && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 text-white text-xs">
+            <div className="flex items-center gap-1.5 px-6 py-5 rounded-lg bg-white/15 text-white text-xs">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               <span className="hidden sm:inline">Connecting...</span>
             </div>
           )}
           {isConnected && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 text-white text-xs">
+            <div className="flex items-center gap-1.5 px-6 py-5 rounded-lg bg-white/20 text-white text-xs">
               {isPrinting ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
@@ -380,7 +383,7 @@ export default function POSDashboard() {
             <button
               type="button"
               onClick={connect}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-white text-xs font-medium transition-colors"
+              className="flex items-center gap-1.5 px-6 py-5 rounded-lg bg-red-500/30 hover:bg-red-500/40 text-white text-xs font-medium transition-colors"
               data-ocid="pos.bluetooth_connect.button"
               title={errorMsg ?? "Printer error — click to retry"}
             >
@@ -395,7 +398,7 @@ export default function POSDashboard() {
             onClick={() =>
               window.open("/customer-display", "_blank", "width=900,height=700")
             }
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-medium transition-colors"
+            className="flex items-center gap-1.5 px-6 py-5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-medium transition-colors"
             data-ocid="pos.customer_display.button"
           >
             <Monitor className="w-3.5 h-3.5" />
@@ -431,43 +434,57 @@ export default function POSDashboard() {
       </header>
 
       {/* ─── Main Layout ─── */}
-      <div className="max-w-6xl mx-auto p-4 lg:p-6">
+      <div className="max-w-6xl mx-auto p-8 lg:p-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           {/* ══ LEFT COLUMN ══ */}
           <div className="space-y-4">
-            {/* Daily Sales */}
+            {/* Daily Sales + 30-Day Report Button */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              className="pos-card p-4 flex items-center gap-4"
+              className="pos-card p-8"
               data-ocid="pos.daily_sales.card"
             >
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "oklch(0.50 0.20 300 / 0.12)" }}
-              >
-                <TrendingUp
-                  className="w-6 h-6"
-                  style={{ color: "oklch(0.50 0.20 300)" }}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Today&apos;s Sales
-                </p>
-                <p className="font-display text-xl font-bold text-foreground">
-                  {formatCurrency(dailySales.total)}
-                </p>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className="text-xs text-muted-foreground">Transactions</p>
-                <p
-                  className="font-display text-xl font-bold"
-                  style={{ color: "oklch(0.50 0.20 300)" }}
+              <div className="flex items-center gap-4">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "oklch(0.50 0.20 300 / 0.12)" }}
                 >
-                  {dailySales.count}
-                </p>
+                  <TrendingUp
+                    className="w-6 h-6"
+                    style={{ color: "oklch(0.50 0.20 300)" }}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Today&apos;s Sales
+                  </p>
+                  <p className="font-display text-xl font-bold text-foreground">
+                    {formatCurrency(dailySales.total)}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-xs text-muted-foreground">Transactions</p>
+                  <p
+                    className="font-display text-xl font-bold"
+                    style={{ color: "oklch(0.50 0.20 300)" }}
+                  >
+                    {dailySales.count}
+                  </p>
+                </div>
               </div>
+
+              {/* 30-Day Sales Report Button */}
+              <button
+                type="button"
+                onClick={() => setSalesReportOpen(true)}
+                className="mt-3 w-full py-6 rounded-xl font-semibold text-white text-sm flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "oklch(0.50 0.20 300)" }}
+                data-ocid="pos.sales_report.button"
+              >
+                <BarChart3 className="w-4 h-4" />
+                View 30-Day Sales Report
+              </button>
             </motion.div>
 
             {/* Quick Add Presets */}
@@ -475,7 +492,7 @@ export default function POSDashboard() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.04 }}
-              className="pos-card p-4"
+              className="pos-card p-8"
             >
               <h2 className="font-display font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
                 <Zap
@@ -495,7 +512,7 @@ export default function POSDashboard() {
                       key={p.name}
                       type="button"
                       onClick={() => handleQuickSelect(p.name)}
-                      className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all active:scale-95 hover:shadow-md ${
+                      className={`flex items-center gap-2.5 px-8 py-6 rounded-xl border-2 font-medium text-sm transition-all active:scale-95 hover:shadow-md ${
                         active
                           ? "text-white shadow-purple-glow"
                           : "border-border bg-secondary text-foreground hover:border-purple-400/50"
@@ -554,7 +571,7 @@ export default function POSDashboard() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.07 }}
-              className="pos-card p-5"
+              className="pos-card p-9"
             >
               <h2 className="font-display font-semibold text-foreground text-base mb-4 flex items-center gap-2">
                 <Plus
@@ -603,7 +620,7 @@ export default function POSDashboard() {
                       placeholder="Price"
                       min="0"
                       step="0.5"
-                      className="pos-input pl-9"
+                      className="pos-input pl-12"
                       data-ocid="pos.product_price.input"
                     />
                   </div>
@@ -621,7 +638,7 @@ export default function POSDashboard() {
                   <button
                     type="button"
                     onClick={handleAddProduct}
-                    className="flex-1 py-3 rounded-xl font-semibold text-white text-sm transition-all hover:opacity-90 active:scale-95 flex items-center justify-center gap-2 shadow-purple-glow"
+                    className="flex-1 py-6 rounded-xl font-semibold text-white text-sm transition-all hover:opacity-90 active:scale-95 flex items-center justify-center gap-2 shadow-purple-glow"
                     style={{ background: "oklch(0.50 0.20 300)" }}
                     data-ocid="pos.add_product.button"
                   >
@@ -632,7 +649,7 @@ export default function POSDashboard() {
                     type="button"
                     onClick={clearCart}
                     disabled={cart.length === 0}
-                    className="px-4 py-3 rounded-xl font-medium text-sm border border-border bg-secondary text-secondary-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                    className="px-8 py-6 rounded-xl font-medium text-sm border border-border bg-secondary text-secondary-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
                     data-ocid="pos.clear_cart.button"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -649,7 +666,7 @@ export default function POSDashboard() {
               transition={{ delay: 0.1 }}
               className="pos-card overflow-hidden"
             >
-              <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+              <div className="px-9 py-8 border-b border-border flex items-center gap-2">
                 <h2 className="font-display font-semibold text-foreground text-base">
                   Cart Items
                 </h2>
@@ -665,7 +682,7 @@ export default function POSDashboard() {
 
               {cart.length === 0 ? (
                 <div
-                  className="py-12 text-center"
+                  className="py-16 text-center"
                   data-ocid="pos.cart.empty_state"
                 >
                   <div
@@ -693,7 +710,7 @@ export default function POSDashboard() {
                         initial={{ opacity: 0, x: -12 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 12, height: 0 }}
-                        className="flex items-center gap-3 px-5 py-3.5"
+                        className="flex items-center gap-3 px-9 py-7"
                         data-ocid={`pos.cart.item.${idx + 1}`}
                       >
                         <span className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-secondary-foreground flex-shrink-0">
@@ -735,7 +752,7 @@ export default function POSDashboard() {
             >
               {/* Bill Header */}
               <div
-                className="px-6 py-5 text-center"
+                className="px-10 py-9 text-center"
                 style={{ background: "oklch(0.50 0.20 300 / 0.06)" }}
               >
                 <h2 className="font-display font-bold text-foreground text-lg">
@@ -751,9 +768,9 @@ export default function POSDashboard() {
               </div>
 
               {/* Bill Items */}
-              <div className="px-6 py-4">
+              <div className="px-10 py-8">
                 {cart.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
+                  <p className="text-sm text-muted-foreground text-center py-12">
                     Bill is empty
                   </p>
                 ) : (
@@ -763,7 +780,7 @@ export default function POSDashboard() {
                         key={item.id}
                         className="flex justify-between items-center text-sm"
                       >
-                        <span className="text-foreground truncate pr-2">
+                        <span className="text-foreground truncate pr-5">
                           {item.name}
                         </span>
                         <span className="font-medium text-foreground flex-shrink-0">
@@ -775,7 +792,7 @@ export default function POSDashboard() {
                 )}
 
                 {/* Totals */}
-                <div className="border-t border-border pt-4 space-y-2">
+                <div className="border-t border-border pt-8 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span className="font-medium text-foreground">
@@ -796,17 +813,17 @@ export default function POSDashboard() {
                 </div>
               </div>
 
-              {/* ── WhatsApp Send Bill (always visible) ── */}
+              {/* WhatsApp Send Bill */}
               {WhatsAppSection}
 
-              {/* ── Actions: Pre-QR ── */}
+              {/* Pre-QR Actions */}
               {!showQR && !paymentSuccess && (
-                <div className="px-6 pb-5 space-y-3">
+                <div className="px-10 pb-9 space-y-3">
                   <button
                     type="button"
                     onClick={generateQR}
                     disabled={cart.length === 0}
-                    className="w-full py-3.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-purple-glow"
+                    className="w-full py-7 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-purple-glow"
                     style={{ background: "oklch(0.50 0.20 300)" }}
                     data-ocid="pos.generate_qr.button"
                   >
@@ -818,7 +835,7 @@ export default function POSDashboard() {
                     type="button"
                     onClick={handlePrintBill}
                     disabled={!canPrint}
-                    className="w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2"
+                    className="w-full py-6 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2"
                     style={{
                       borderColor: "oklch(0.50 0.20 300)",
                       color: "oklch(0.50 0.20 300)",
@@ -852,23 +869,23 @@ export default function POSDashboard() {
                 </div>
               )}
 
-              {/* ── Actions: QR Shown ── */}
+              {/* QR Shown Actions */}
               <AnimatePresence>
                 {showQR && !paymentSuccess && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.92 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.92 }}
-                    className="px-6 pb-6"
+                    className="px-10 pb-10"
                   >
                     <div
-                      className="rounded-2xl p-5 text-center mb-3"
+                      className="rounded-2xl p-9 text-center mb-3"
                       style={{ background: "oklch(0.50 0.20 300 / 0.06)" }}
                     >
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                         Scan to Pay
                       </p>
-                      <div className="inline-block bg-white rounded-2xl p-3 shadow-card">
+                      <div className="inline-block bg-white rounded-2xl p-6 shadow-card">
                         <img
                           src={qrDataUrl}
                           alt="UPI QR Code"
@@ -891,7 +908,7 @@ export default function POSDashboard() {
                       type="button"
                       onClick={handlePrintBill}
                       disabled={!canPrint}
-                      className="w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2 mb-3"
+                      className="w-full py-6 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2 mb-3"
                       style={{
                         borderColor: "oklch(0.50 0.20 300)",
                         color: "oklch(0.50 0.20 300)",
@@ -909,7 +926,7 @@ export default function POSDashboard() {
                     <button
                       type="button"
                       onClick={confirmPayment}
-                      className="w-full py-3.5 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
+                      className="w-full py-7 rounded-xl font-semibold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95"
                       style={{ background: "oklch(0.42 0.18 160)" }}
                       data-ocid="pos.payment_received.button"
                     >
@@ -920,18 +937,18 @@ export default function POSDashboard() {
                 )}
               </AnimatePresence>
 
-              {/* ── Actions: Payment Success ── */}
+              {/* Payment Success Actions */}
               <AnimatePresence>
                 {paymentSuccess && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.92 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
-                    className="px-6 pb-6"
+                    className="px-10 pb-10"
                     data-ocid="pos.payment.success_state"
                   >
                     <div
-                      className="rounded-2xl p-6 text-center mb-4"
+                      className="rounded-2xl p-10 text-center mb-4"
                       style={{ background: "oklch(0.42 0.18 160 / 0.08)" }}
                     >
                       <motion.div
@@ -965,7 +982,7 @@ export default function POSDashboard() {
                       type="button"
                       onClick={handlePrintBill}
                       disabled={!isConnected || isPrinting}
-                      className="w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2 mb-3"
+                      className="w-full py-6 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed border-2 mb-3"
                       style={{
                         borderColor: "oklch(0.50 0.20 300)",
                         color: "oklch(0.50 0.20 300)",
@@ -983,7 +1000,7 @@ export default function POSDashboard() {
                     <button
                       type="button"
                       onClick={newCustomer}
-                      className="w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 border border-border bg-secondary text-secondary-foreground"
+                      className="w-full py-7 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-95 border border-border bg-secondary text-secondary-foreground"
                       data-ocid="pos.new_customer.button"
                     >
                       <UserPlus className="w-5 h-5" />
@@ -1001,6 +1018,13 @@ export default function POSDashboard() {
           </div>
         </div>
       </div>
+
+      {/* 30-Day Sales Report Modal */}
+      <SalesReportModal
+        open={salesReportOpen}
+        onClose={() => setSalesReportOpen(false)}
+        sales={salesReportOpen ? getLast30DaysSales() : []}
+      />
     </div>
   );
 }

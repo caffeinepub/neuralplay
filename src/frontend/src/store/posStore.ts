@@ -11,7 +11,7 @@ interface DailySales {
   count: number;
 }
 
-interface SaleRecord {
+export interface SaleRecord {
   id: string;
   items: CartItem[];
   total: number;
@@ -49,6 +49,7 @@ interface POSStore {
   // Sales
   getDailySales: () => DailySales;
   addSale: (amount: number) => void;
+  getLast30DaysSales: () => SaleRecord[];
 }
 
 const SALES_KEY = "ndd_sales";
@@ -80,6 +81,20 @@ function getTodaySales(): SaleRecord[] {
     const sales: SaleRecord[] = raw ? (JSON.parse(raw) as SaleRecord[]) : [];
     const today = new Date().toDateString();
     return sales.filter((s) => new Date(s.date).toDateString() === today);
+  } catch {
+    return [];
+  }
+}
+
+function getAllLast30DaysSales(): SaleRecord[] {
+  try {
+    const raw = localStorage.getItem(SALES_KEY);
+    const sales: SaleRecord[] = raw ? (JSON.parse(raw) as SaleRecord[]) : [];
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 30);
+    return sales
+      .filter((s) => new Date(s.date) >= cutoff)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   } catch {
     return [];
   }
@@ -241,4 +256,6 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     };
     saveSale(tx);
   },
+
+  getLast30DaysSales: () => getAllLast30DaysSales(),
 }));

@@ -49,7 +49,7 @@ export default function BottomNav() {
       className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-border z-50"
       style={{ boxShadow: "0 -1px 8px oklch(0.15 0.03 145 / 0.08)" }}
     >
-      <div className="flex items-center justify-around h-[60px] px-1">
+      <div className="flex items-center justify-around h-[60px] px-1.5">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -60,7 +60,7 @@ export default function BottomNav() {
               key={item.path}
               to={item.path}
               data-ocid={item.ocid}
-              className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors"
+              className="flex flex-col items-center gap-0.5 px-3.5 py-2 rounded-xl transition-colors"
             >
               <Icon
                 size={22}
