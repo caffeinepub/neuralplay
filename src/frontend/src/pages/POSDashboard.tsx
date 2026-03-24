@@ -22,6 +22,7 @@ import {
   Plus,
   Printer,
   QrCode,
+  ShoppingBag,
   Sun,
   Trash2,
   TrendingUp,
@@ -391,6 +392,17 @@ export default function POSDashboard() {
               <span className="hidden sm:inline">Retry 58Printer</span>
             </button>
           )}
+
+          {/* Milk Purchase */}
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/milk-purchase" })}
+            className="flex items-center gap-1.5 px-5 py-4 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-medium transition-colors"
+            data-ocid="pos.milk_purchase.button"
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Milk Purchase</span>
+          </button>
 
           {/* Customer Display */}
           <button

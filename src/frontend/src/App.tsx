@@ -7,6 +7,7 @@ import {
   createRouter,
 } from "@tanstack/react-router";
 import CustomerDisplayPage from "./pages/CustomerDisplayPage";
+import MilkPurchasePage from "./pages/MilkPurchasePage";
 import POSDashboard from "./pages/POSDashboard";
 import POSLoginPage from "./pages/POSLoginPage";
 
@@ -37,10 +38,17 @@ const customerDisplayRoute = createRoute({
   component: CustomerDisplayPage,
 });
 
+const milkPurchaseRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/milk-purchase",
+  component: MilkPurchasePage,
+});
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   dashboardRoute,
   customerDisplayRoute,
+  milkPurchaseRoute,
 ]);
 
 const router = createRouter({ routeTree });
