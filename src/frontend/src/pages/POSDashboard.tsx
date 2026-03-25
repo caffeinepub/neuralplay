@@ -74,7 +74,6 @@ function buildWhatsAppMessage(
   lines.push("-------------------------------");
   lines.push(`*Total: Rs.${total.toFixed(0)}*`);
   lines.push("");
-  lines.push("Pay via UPI: 7820957013@ibl");
   lines.push("Thank you for your purchase!");
   return lines.join("\n");
 }

@@ -194,7 +194,6 @@ export function buildReceiptBytes(
     bytes(ESC, 0x45, 0x00),
     text(`${amountInWords(total)}\n`),
     text(DBL),
-    text("UPI: 7820957013@ibl\n"),
     text("Thank you for your purchase!\n"),
     text("Visit Again :)\n"),
     bytes(ESC, 0x64, 0x03), // Feed 3 lines
