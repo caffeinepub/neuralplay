@@ -156,15 +156,22 @@ function build7DayReceiptBytes(record: SevenDayRecord): Uint8Array {
   const firstDate = sortedDays[0]?.date ?? "";
   const lastDate = sortedDays[sortedDays.length - 1]?.date ?? "";
 
-  function fmtShort(iso: string): string {
+  function fmtDayShort(iso: string): string {
     const d = new Date(iso);
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    return `${dd}/${mm}`;
+    const day = new Intl.DateTimeFormat("en-IN", { weekday: "short" }).format(
+      d,
+    );
+    const date = new Intl.DateTimeFormat("en-IN", {
+      day: "numeric",
+      month: "short",
+    }).format(d);
+    return `${day} ${date}`;
   }
 
-  const dateRange =
-    firstDate && lastDate ? `${fmtShort(firstDate)}-${fmtShort(lastDate)}` : "";
+  const _dateRange =
+    firstDate && lastDate
+      ? `${fmtDayShort(firstDate)} - ${fmtDayShort(lastDate)}`
+      : "";
 
   const parts: Uint8Array[] = [
     _bytes(ESC, 0x40),
@@ -175,7 +182,6 @@ function build7DayReceiptBytes(record: SevenDayRecord): Uint8Array {
     _bytes(GS, 0x21, 0x00),
     _bytes(ESC, 0x45, 0x00),
     _text("Milk Purchase - 7 Day Slip\n"),
-    _text(`${dateRange}\n`),
     _text(`Slip No: ${slipNo}\n`),
     _bytes(ESC, 0x61, 0x00),
     _text(LINE),
@@ -189,12 +195,23 @@ function build7DayReceiptBytes(record: SevenDayRecord): Uint8Array {
   if (record.snf) parts.push(_text(_padRow("SNF %:", `${record.snf}%`)));
 
   // Table header
-  parts.push(_text(DBL), _text("Date       Morn  Eve   Amount\n"), _text(LINE));
+  parts.push(_text(DBL), _text("Day        Morn  Eve   Amount\n"), _text(LINE));
 
   // Day rows
   for (const day of sortedDays) {
     if (day.morningQty > 0 || day.eveningQty > 0) {
-      const dateStr = fmtShort(day.date).padEnd(11);
+      const dayNames = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+      const dayIdx2 = new Date(day.date).getDay();
+      const dayNameIdx = dayIdx2 === 0 ? 6 : dayIdx2 - 1;
+      const dateStr = (dayNames[dayNameIdx] ?? "").padEnd(11);
       const morn = `${day.morningQty.toFixed(1)}L`.padEnd(6);
       const eve = `${day.eveningQty.toFixed(1)}L`.padEnd(6);
       const amt = `Rs.${Math.round(day.amount)}`;
@@ -234,19 +251,26 @@ function build7DayWhatsAppMessage(record: SevenDayRecord): string {
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
 
-  function fmtShort(iso: string): string {
+  function fmtDayShort(iso: string): string {
     const d = new Date(iso);
-    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const day = new Intl.DateTimeFormat("en-IN", { weekday: "short" }).format(
+      d,
+    );
+    const date = new Intl.DateTimeFormat("en-IN", {
+      day: "numeric",
+      month: "short",
+    }).format(d);
+    return `${day} ${date}`;
   }
 
   const firstDate = sortedDays[0]?.date ?? "";
   const lastDate = sortedDays[sortedDays.length - 1]?.date ?? "";
-  const dateRange =
+  const _dateRange =
     firstDate && lastDate
-      ? `${fmtShort(firstDate)} - ${fmtShort(lastDate)}`
+      ? `${fmtDayShort(firstDate)} - ${fmtDayShort(lastDate)}`
       : "";
 
-  let msg = `*Nanaji Dudh Dairy*\nMilk Purchase - 7 Day Slip\n${dateRange}\n`;
+  let msg = "*Nanaji Dudh Dairy*\nMilk Purchase - 7 Day Slip\n";
   msg += "\n----------------------------\n";
   msg += `Farmer: ${record.supplierName}\n`;
   msg += `Milk Type: ${record.milkType} Milk\n`;
@@ -259,7 +283,18 @@ function build7DayWhatsAppMessage(record: SevenDayRecord): string {
 
   for (const day of sortedDays) {
     if (day.morningQty > 0 || day.eveningQty > 0) {
-      msg += `${fmtShort(day.date)} | ${day.morningQty.toFixed(1)}L | ${day.eveningQty.toFixed(1)}L | Rs.${Math.round(day.amount)}\n`;
+      const _dayNames = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+      const _di = new Date(day.date).getDay();
+      const _dni = _di === 0 ? 6 : _di - 1;
+      msg += `${_dayNames[_dni] ?? ""} | ${day.morningQty.toFixed(1)}L | ${day.eveningQty.toFixed(1)}L | Rs.${Math.round(day.amount)}\n`;
     }
   }
 
@@ -359,15 +394,35 @@ function buildWhatsAppMessage(record: MilkPurchaseRecord): string {
   return msg;
 }
 
-// Generate last 7 days (most recent last)
-function getLast7Days(): string[] {
-  const days: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split("T")[0]);
-  }
-  return days;
+// Returns 7 dates Mon→Sun for a given week offset (0 = current week, -1 = last week)
+function getWeekDates(weekOffset = -1): string[] {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon...6=Sat
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - daysFromMonday + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const dy = String(d.getDate()).padStart(2, "0");
+    return `${yr}-${mo}-${dy}`;
+  });
+}
+
+function getWeekLabel(weekOffset: number): string {
+  const dates = getWeekDates(weekOffset);
+  const first = new Date(dates[0]);
+  const last = new Date(dates[6]);
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(
+      d,
+    );
+  if (weekOffset === 0) return `This Week (${fmt(first)} - ${fmt(last)})`;
+  if (weekOffset === -1) return `Last Week (${fmt(first)} - ${fmt(last)})`;
+  return `${fmt(first)} - ${fmt(last)}`;
 }
 
 function fmtDateLabel(iso: string): string {
@@ -406,8 +461,9 @@ export default function MilkPurchasePage() {
   const [s7Snf, setS7Snf] = useState("");
   const [s7WhatsApp, setS7WhatsApp] = useState("");
   const [s7Errors, setS7Errors] = useState<Record<string, string>>({});
+  const [s7WeekOffset, setS7WeekOffset] = useState(-1);
   const [s7Rows, setS7Rows] = useState<SevenDayRow[]>(() =>
-    getLast7Days().map((date) => ({ date, morningQty: "", eveningQty: "" })),
+    getWeekDates(-1).map((date) => ({ date, morningQty: "", eveningQty: "" })),
   );
 
   useEffect(() => {
@@ -425,6 +481,16 @@ export default function MilkPurchasePage() {
   useEffect(() => {
     setRecords(loadPurchases());
   }, []);
+
+  useEffect(() => {
+    setS7Rows(
+      getWeekDates(s7WeekOffset).map((date) => ({
+        date,
+        morningQty: "",
+        eveningQty: "",
+      })),
+    );
+  }, [s7WeekOffset]);
 
   const qty = Number.parseFloat(quantity);
   const rate = Number.parseFloat(ratePerLiter);
@@ -539,7 +605,11 @@ export default function MilkPurchasePage() {
     setS7WhatsApp("");
     setS7Errors({});
     setS7Rows(
-      getLast7Days().map((date) => ({ date, morningQty: "", eveningQty: "" })),
+      getWeekDates(s7WeekOffset).map((date) => ({
+        date,
+        morningQty: "",
+        eveningQty: "",
+      })),
     );
   }
 
@@ -1101,8 +1171,28 @@ export default function MilkPurchasePage() {
                     7 Days Milk Purchase Entry
                   </h2>
                   <p className="text-xs text-muted-foreground">
-                    Morning &amp; Evening rates — last 7 days
+                    {getWeekLabel(s7WeekOffset)}
                   </p>
+                </div>
+                {/* Week navigation */}
+                <div className="flex items-center gap-1 mr-2">
+                  <button
+                    type="button"
+                    onClick={() => setS7WeekOffset((v) => v - 1)}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors text-xs font-bold"
+                    title="Previous week"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setS7WeekOffset((v) => Math.min(0, v + 1))}
+                    disabled={s7WeekOffset >= 0}
+                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors text-xs font-bold disabled:opacity-30"
+                    title="Next week"
+                  >
+                    ›
+                  </button>
                 </div>
                 <button
                   type="button"
@@ -1321,8 +1411,13 @@ export default function MilkPurchasePage() {
 
                     {/* Rows */}
                     {s7DisplayRows.map((row, idx) => {
-                      const isToday =
-                        row.date === new Date().toISOString().split("T")[0];
+                      const isToday = (() => {
+                        const n = new Date();
+                        return (
+                          row.date ===
+                          `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`
+                        );
+                      })();
                       const amount = row.amount;
                       return (
                         <div
@@ -1468,7 +1563,7 @@ export default function MilkPurchasePage() {
                   const padL = 44;
                   const padR = 12;
                   const padT = 30;
-                  const padB = 60;
+                  const padB = 75;
                   const chartW = svgW - padL - padR;
                   const chartH = svgH - padT - padB;
                   const numDays = 7;
@@ -1633,11 +1728,25 @@ export default function MilkPurchasePage() {
                                 >
                                   {dayLabel}
                                 </text>
+                                {/* Date label below day */}
+                                <text
+                                  x={cx}
+                                  y={baseY + 26}
+                                  textAnchor="middle"
+                                  fontSize={8}
+                                  fill="currentColor"
+                                  fillOpacity={0.55}
+                                >
+                                  {new Intl.DateTimeFormat("en-IN", {
+                                    day: "2-digit",
+                                    month: "short",
+                                  }).format(new Date(row.date))}
+                                </text>
                                 {/* Amount label */}
                                 {amtLabel && (
                                   <text
                                     x={cx}
-                                    y={baseY + 27}
+                                    y={baseY + 40}
                                     textAnchor="middle"
                                     fontSize={8}
                                     fill="currentColor"
