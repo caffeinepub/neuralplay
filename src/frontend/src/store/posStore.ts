@@ -3,7 +3,9 @@ import { create } from "zustand";
 export interface CartItem {
   id: string;
   name: string;
-  price: number;
+  price: number; // total line price = unitPrice * qty
+  unitPrice: number;
+  qty: number;
 }
 
 interface DailySales {
@@ -26,7 +28,7 @@ interface POSStore {
 
   // Cart
   cart: CartItem[];
-  addItem: (name: string, price: number) => void;
+  addItem: (name: string, unitPrice: number, qty: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
 
@@ -49,6 +51,7 @@ interface POSStore {
   // Sales
   getDailySales: () => DailySales;
   addSale: (amount: number) => void;
+  saveCartAsSale: () => void;
   getLast30DaysSales: () => SaleRecord[];
 }
 
@@ -123,6 +126,57 @@ const emptyCartState = {
   selectedPreset: null as string | null,
 };
 
+function amountWords(n: number): string {
+  const ones = [
+    "",
+    "One",
+    "Two",
+    "Three",
+    "Four",
+    "Five",
+    "Six",
+    "Seven",
+    "Eight",
+    "Nine",
+    "Ten",
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen",
+  ];
+  const tens = [
+    "",
+    "",
+    "Twenty",
+    "Thirty",
+    "Forty",
+    "Fifty",
+    "Sixty",
+    "Seventy",
+    "Eighty",
+    "Ninety",
+  ];
+  function below1000(x: number): string {
+    if (x === 0) return "";
+    if (x < 20) return `${ones[x]} `;
+    if (x < 100)
+      return tens[Math.floor(x / 10)] + (x % 10 ? ` ${ones[x % 10]} ` : " ");
+    return `${ones[Math.floor(x / 100)]} Hundred ${below1000(x % 100)}`;
+  }
+  const r = Math.round(n);
+  let res = "";
+  const th = Math.floor(r / 1000);
+  const rem = r % 1000;
+  if (th > 0) res += `${below1000(th)}Thousand `;
+  if (rem > 0) res += below1000(rem);
+  return res.trim() || "Zero";
+}
+
 export const usePOSStore = create<POSStore>((set, get) => ({
   isLoggedIn: false,
   login: () => set({ isLoggedIn: true }),
@@ -132,9 +186,15 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   },
 
   cart: [],
-  addItem: (name, price) => {
+  addItem: (name, unitPrice, qty) => {
     set((s) => {
-      const newItem: CartItem = { id: Date.now().toString(), name, price };
+      const newItem: CartItem = {
+        id: Date.now().toString(),
+        name,
+        unitPrice,
+        qty,
+        price: unitPrice * qty,
+      };
       const cart = [...s.cart, newItem];
       const total = cart.reduce((acc, item) => acc + item.price, 0);
       syncDisplay(cart, total, false);
@@ -206,7 +266,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     setTimeout(() => {
       if (window.speechSynthesis) {
         const utter = new SpeechSynthesisUtterance(
-          `Payment of rupees ${total} received successfully.`,
+          `Payment of rupees ${amountWords(total)} only, received successfully.`,
         );
         utter.lang = "en-IN";
         utter.rate = 0.95;
@@ -252,6 +312,19 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       id: Date.now().toString(),
       items: [],
       total: amount,
+      date: new Date().toISOString(),
+    };
+    saveSale(tx);
+  },
+
+  saveCartAsSale: () => {
+    const { cart } = get();
+    const total = cart.reduce((acc, item) => acc + item.price, 0);
+    if (cart.length === 0 || total <= 0) return;
+    const tx: SaleRecord = {
+      id: Date.now().toString(),
+      items: [...cart],
+      total,
       date: new Date().toISOString(),
     };
     saveSale(tx);

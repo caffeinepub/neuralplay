@@ -52,7 +52,7 @@ function concat(...parts: Uint8Array[]): Uint8Array {
 
 // ASCII-only Indian number format (no Unicode symbols)
 function formatAmountASCII(n: number): string {
-  const rounded = Math.round(n);
+  const rounded = Math.floor(n);
   const s = rounded.toString();
   if (s.length <= 3) return `Rs.${s}`;
   const last3 = s.slice(-3);
@@ -129,7 +129,7 @@ function numberToWords(n: number): string {
 }
 
 function amountInWords(total: number): string {
-  const rounded = Math.round(total);
+  const rounded = Math.floor(total);
   return `Rupees ${numberToWords(rounded)} Only`;
 }
 
@@ -144,7 +144,9 @@ function padRow(name: string, price: string, width = 32): string {
 
 export interface ReceiptItem {
   name: string;
-  price: number;
+  price: number; // total line price
+  unitPrice?: number;
+  qty?: number;
 }
 
 export function buildReceiptBytes(
@@ -161,6 +163,18 @@ export function buildReceiptBytes(
   }).format(new Date());
 
   const totalStr = formatAmountASCII(total);
+
+  const itemLines: Uint8Array[] = items.flatMap((item) => {
+    if (item.qty && item.qty > 1 && item.unitPrice) {
+      // Two-line format: name on first line, qty x unitPrice = total on second
+      const qtyLine = `  ${Math.floor(item.qty)} x ${formatAmountASCII(item.unitPrice)}`;
+      const totalLineStr = formatAmountASCII(item.price);
+      const spaces = 32 - qtyLine.length - totalLineStr.length;
+      const secondLine = `${qtyLine}${" ".repeat(Math.max(1, spaces))}${totalLineStr}\n`;
+      return [text(`${item.name}\n`), text(secondLine)];
+    }
+    return [text(padRow(item.name, formatAmountASCII(item.price)))];
+  });
 
   return concat(
     bytes(ESC, 0x40), // Init
@@ -180,9 +194,7 @@ export function buildReceiptBytes(
     text(padRow("ITEM", "AMOUNT")),
     bytes(ESC, 0x45, 0x00),
     text(LINE),
-    ...items.map((item) =>
-      text(padRow(item.name, formatAmountASCII(item.price))),
-    ),
+    ...itemLines,
     text(DBL),
     bytes(ESC, 0x45, 0x01),
     text(padRow("TOTAL", totalStr)),

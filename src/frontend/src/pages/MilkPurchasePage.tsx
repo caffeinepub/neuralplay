@@ -102,7 +102,7 @@ function buildMilkReceiptBytes(record: MilkPurchaseRecord): Uint8Array {
     timeStyle: "short",
   }).format(new Date(record.date));
 
-  const totalStr = `Rs.${Math.round(record.totalAmount).toLocaleString("en-IN")}`;
+  const totalStr = `Rs.${Math.floor(record.totalAmount).toLocaleString("en-IN")}`;
 
   const parts: Uint8Array[] = [
     _bytes(ESC, 0x40),
@@ -119,8 +119,8 @@ function buildMilkReceiptBytes(record: MilkPurchaseRecord): Uint8Array {
     _text(LINE),
     _text(_padRow("Farmer:", record.supplierName)),
     _text(_padRow("Milk Type:", `${record.milkType} Milk`)),
-    _text(_padRow("Quantity:", `${record.quantity} L`)),
-    _text(_padRow("Rate/Litre:", `Rs.${record.ratePerLiter}`)),
+    _text(_padRow("Quantity:", `${Math.floor(record.quantity)} L`)),
+    _text(_padRow("Rate/Litre:", `Rs.${Math.floor(record.ratePerLiter)}`)),
   ];
 
   if (record.fat) {
@@ -187,8 +187,8 @@ function build7DayReceiptBytes(record: SevenDayRecord): Uint8Array {
     _text(LINE),
     _text(_padRow("Farmer:", record.supplierName)),
     _text(_padRow("Milk Type:", `${record.milkType} Milk`)),
-    _text(_padRow("Morning Rate:", `Rs.${record.morningRate}/L`)),
-    _text(_padRow("Evening Rate:", `Rs.${record.eveningRate}/L`)),
+    _text(_padRow("Morning Rate:", `Rs.${Math.floor(record.morningRate)}/L`)),
+    _text(_padRow("Evening Rate:", `Rs.${Math.floor(record.eveningRate)}/L`)),
   ];
 
   if (record.fat) parts.push(_text(_padRow("Fat %:", `${record.fat}%`)));
@@ -212,9 +212,9 @@ function build7DayReceiptBytes(record: SevenDayRecord): Uint8Array {
       const dayIdx2 = new Date(day.date).getDay();
       const dayNameIdx = dayIdx2 === 0 ? 6 : dayIdx2 - 1;
       const dateStr = (dayNames[dayNameIdx] ?? "").padEnd(11);
-      const morn = `${day.morningQty.toFixed(1)}L`.padEnd(6);
-      const eve = `${day.eveningQty.toFixed(1)}L`.padEnd(6);
-      const amt = `Rs.${Math.round(day.amount)}`;
+      const morn = `${Math.floor(day.morningQty)}L`.padEnd(6);
+      const eve = `${Math.floor(day.eveningQty)}L`.padEnd(6);
+      const amt = `Rs.${Math.floor(day.amount)}`;
       parts.push(_text(`${dateStr}${morn}${eve}${amt}\n`));
     }
   }
@@ -224,15 +224,15 @@ function build7DayReceiptBytes(record: SevenDayRecord): Uint8Array {
     _text(DBL),
     _bytes(ESC, 0x45, 0x01),
     _text(
-      _padRow("TOTAL MORNING:", `${record.totalMorningLiters.toFixed(1)} L`),
+      _padRow("TOTAL MORNING:", `${Math.floor(record.totalMorningLiters)} L`),
     ),
     _text(
-      _padRow("TOTAL EVENING:", `${record.totalEveningLiters.toFixed(1)} L`),
+      _padRow("TOTAL EVENING:", `${Math.floor(record.totalEveningLiters)} L`),
     ),
     _text(
       _padRow(
         "GRAND TOTAL:",
-        `Rs.${Math.round(record.totalAmount).toLocaleString("en-IN")}`,
+        `Rs.${Math.floor(record.totalAmount).toLocaleString("en-IN")}`,
       ),
     ),
     _bytes(ESC, 0x45, 0x00),
@@ -274,8 +274,10 @@ function build7DayWhatsAppMessage(record: SevenDayRecord): string {
   msg += "\n----------------------------\n";
   msg += `Farmer: ${record.supplierName}\n`;
   msg += `Milk Type: ${record.milkType} Milk\n`;
-  msg += `Morning Rate: Rs.${record.morningRate}/L\n`;
-  msg += `Evening Rate: Rs.${record.eveningRate}/L\n`;
+  msg += `Morning Rate: Rs.${Math.floor(record.morningRate)}/L
+`;
+  msg += `Evening Rate: Rs.${Math.floor(record.eveningRate)}/L
+`;
   if (record.fat) msg += `Fat %: ${record.fat}%\n`;
   if (record.snf) msg += `SNF %: ${record.snf}%\n`;
   msg += "\n*Date | Morning | Evening | Amount*\n";
@@ -294,14 +296,18 @@ function build7DayWhatsAppMessage(record: SevenDayRecord): string {
       ];
       const _di = new Date(day.date).getDay();
       const _dni = _di === 0 ? 6 : _di - 1;
-      msg += `${_dayNames[_dni] ?? ""} | ${day.morningQty.toFixed(1)}L | ${day.eveningQty.toFixed(1)}L | Rs.${Math.round(day.amount)}\n`;
+      msg += `${_dayNames[_dni] ?? ""} | ${Math.floor(day.morningQty)}L | ${Math.floor(day.eveningQty)}L | Rs.${Math.floor(day.amount)}
+`;
     }
   }
 
   msg += "============================\n";
-  msg += `Total Morning: ${record.totalMorningLiters.toFixed(1)} L\n`;
-  msg += `Total Evening: ${record.totalEveningLiters.toFixed(1)} L\n`;
-  msg += `*GRAND TOTAL: Rs.${Math.round(record.totalAmount).toLocaleString("en-IN")}*\n`;
+  msg += `Total Morning: ${Math.floor(record.totalMorningLiters)} L
+`;
+  msg += `Total Evening: ${Math.floor(record.totalEveningLiters)} L
+`;
+  msg += `*GRAND TOTAL: Rs.${Math.floor(record.totalAmount).toLocaleString("en-IN")}*
+`;
   msg += "----------------------------\n";
   return msg;
 }
@@ -384,12 +390,15 @@ function buildWhatsAppMessage(record: MilkPurchaseRecord): string {
   msg += "\n----------------------------\n";
   msg += `Farmer: ${record.supplierName}\n`;
   msg += `Milk Type: ${record.milkType} Milk\n`;
-  msg += `Quantity: ${record.quantity} L\n`;
-  msg += `Rate/Litre: Rs.${record.ratePerLiter}\n`;
+  msg += `Quantity: ${Math.floor(record.quantity)} L
+`;
+  msg += `Rate/Litre: Rs.${Math.floor(record.ratePerLiter)}
+`;
   if (record.fat) msg += `Fat %: ${record.fat}%\n`;
   if (record.snf) msg += `SNF %: ${record.snf}%\n`;
   msg += "============================\n";
-  msg += `*TOTAL: Rs.${Math.round(record.totalAmount).toLocaleString("en-IN")}*\n`;
+  msg += `*TOTAL: Rs.${Math.floor(record.totalAmount).toLocaleString("en-IN")}*
+`;
   msg += "----------------------------\n";
   return msg;
 }

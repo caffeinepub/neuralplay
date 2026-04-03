@@ -11,6 +11,7 @@ import {
   BluetoothConnected,
   BluetoothOff,
   CheckCircle2,
+  Hash,
   IndianRupee,
   Loader2,
   LogOut,
@@ -58,7 +59,7 @@ function formatDateTime(): string {
 }
 
 function buildWhatsAppMessage(
-  cart: { name: string; price: number }[],
+  cart: { name: string; price: number; unitPrice?: number; qty?: number }[],
   total: number,
   dateTime: string,
 ): string {
@@ -69,10 +70,17 @@ function buildWhatsAppMessage(
   lines.push("");
   lines.push("-------------------------------");
   cart.forEach((item, idx) => {
-    lines.push(`${idx + 1}. ${item.name}  Rs.${item.price.toFixed(0)}`);
+    if (item.qty && item.qty > 1 && item.unitPrice) {
+      lines.push(`${idx + 1}. ${item.name}`);
+      lines.push(
+        `   ${Math.floor(item.qty)} x Rs.${Math.floor(item.unitPrice)} = Rs.${Math.floor(item.price)}`,
+      );
+    } else {
+      lines.push(`${idx + 1}. ${item.name}  Rs.${Math.floor(item.price)}`);
+    }
   });
   lines.push("-------------------------------");
-  lines.push(`*Total: Rs.${total.toFixed(0)}*`);
+  lines.push(`*Total: Rs.${Math.floor(total)}*`);
   lines.push("");
   lines.push("Thank you for your purchase!");
   return lines.join("\n");
@@ -100,6 +108,7 @@ export default function POSDashboard() {
     getLast30DaysSales,
     selectedPreset,
     setSelectedPreset,
+    saveCartAsSale,
   } = usePOSStore();
 
   const {
@@ -116,8 +125,10 @@ export default function POSDashboard() {
 
   const [productName, setProductName] = useState("");
   const [productPrice, setProductPrice] = useState("");
+  const [productQty, setProductQty] = useState("1");
   const [nameError, setNameError] = useState("");
   const [priceError, setPriceError] = useState("");
+  const [qtyError, setQtyError] = useState("");
   const [currentTime, setCurrentTime] = useState(formatDateTime);
   const [dailySales, setDailySales] = useState({ total: 0, count: 0 });
   const [whatsappNumber, setWhatsappNumber] = useState("");
@@ -125,6 +136,7 @@ export default function POSDashboard() {
   const [salesReportOpen, setSalesReportOpen] = useState(false);
 
   const priceInputRef = useRef<HTMLInputElement>(null);
+  const qtyInputRef = useRef<HTMLInputElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const addFormRef = useRef<HTMLDivElement>(null);
 
@@ -176,8 +188,10 @@ export default function POSDashboard() {
     (name: string) => {
       setSelectedPreset(name);
       setProductPrice("");
+      setProductQty("1");
       setPriceError("");
-      setTimeout(() => priceInputRef.current?.focus(), 50);
+      setQtyError("");
+      setTimeout(() => qtyInputRef.current?.focus(), 50);
     },
     [setSelectedPreset],
   );
@@ -191,25 +205,35 @@ export default function POSDashboard() {
     } else {
       setNameError("");
     }
-    const price = Number.parseFloat(productPrice);
-    if (!productPrice || Number.isNaN(price) || price <= 0) {
+    const unitPrice = Number.parseFloat(productPrice);
+    if (!productPrice || Number.isNaN(unitPrice) || unitPrice <= 0) {
       setPriceError("Enter a valid price");
       valid = false;
     } else {
       setPriceError("");
     }
+    const qty = Number.parseInt(productQty, 10);
+    if (!productQty || Number.isNaN(qty) || qty < 1) {
+      setQtyError("Quantity must be at least 1");
+      valid = false;
+    } else {
+      setQtyError("");
+    }
     if (!valid) return;
-    addItem(trimmedName, price);
+    addItem(trimmedName, unitPrice, qty);
     setProductName("");
     setProductPrice("");
+    setProductQty("1");
     setSelectedPreset(null);
-  }, [productName, productPrice, addItem, setSelectedPreset]);
+  }, [productName, productPrice, productQty, addItem, setSelectedPreset]);
 
   const handleAddNew = useCallback(() => {
     setProductName("");
     setProductPrice("");
+    setProductQty("1");
     setNameError("");
     setPriceError("");
+    setQtyError("");
     setSelectedPreset(null);
     setTimeout(() => {
       addFormRef.current?.scrollIntoView({
@@ -233,11 +257,25 @@ export default function POSDashboard() {
     const data = buildReceiptBytes(cart, total, billNo);
     const ok = await print(data);
     if (ok) {
-      toast.success("Receipt sent to 58Printer!");
+      // Auto-save transaction when bill is printed (if not already saved via payment)
+      if (!paymentSuccess) {
+        saveCartAsSale();
+        setDailySales(getDailySales());
+      }
+      toast.success("Receipt sent to 58Printer & transaction saved!");
     } else {
       toast.error(errorMsg ?? "Print failed");
     }
-  }, [isConnected, cart, total, print, errorMsg]);
+  }, [
+    isConnected,
+    cart,
+    total,
+    print,
+    errorMsg,
+    paymentSuccess,
+    saveCartAsSale,
+    getDailySales,
+  ]);
 
   const handleSendWhatsApp = useCallback(() => {
     if (cart.length === 0) {
@@ -263,6 +301,16 @@ export default function POSDashboard() {
   }
 
   const canPrint = isConnected && cart.length > 0 && !isPrinting;
+
+  // Derived: line total preview
+  const previewUnitPrice = Number.parseFloat(productPrice);
+  const previewQty = Number.parseInt(productQty, 10);
+  const showLineTotal =
+    !Number.isNaN(previewUnitPrice) &&
+    previewUnitPrice > 0 &&
+    !Number.isNaN(previewQty) &&
+    previewQty >= 1;
+  const lineTotal = showLineTotal ? previewUnitPrice * previewQty : 0;
 
   // WhatsApp Send Bill section
   const WhatsAppSection = (
@@ -571,7 +619,7 @@ export default function POSDashboard() {
                     >
                       {productName}
                     </span>{" "}
-                    selected — enter amount below and tap Add
+                    selected — enter quantity &amp; price below and tap Add
                   </p>
                 )}
             </motion.div>
@@ -601,7 +649,9 @@ export default function POSDashboard() {
                       setProductName(e.target.value);
                       setNameError("");
                     }}
-                    onKeyDown={(e) => e.key === "Enter" && handleAddProduct()}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && qtyInputRef.current?.focus()
+                    }
                     placeholder="Product name (e.g. Fresh Milk)"
                     className="pos-input"
                     data-ocid="pos.product_name.input"
@@ -616,34 +666,91 @@ export default function POSDashboard() {
                   )}
                 </div>
 
-                <div>
-                  <div className="relative">
-                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                    <input
-                      ref={priceInputRef}
-                      type="number"
-                      value={productPrice}
-                      onChange={(e) => {
-                        setProductPrice(e.target.value);
-                        setPriceError("");
-                      }}
-                      onKeyDown={(e) => e.key === "Enter" && handleAddProduct()}
-                      placeholder="Price"
-                      min="0"
-                      step="0.5"
-                      className="pos-input pl-11"
-                      data-ocid="pos.product_price.input"
-                    />
+                {/* Price + Qty side by side */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      <input
+                        ref={qtyInputRef}
+                        type="number"
+                        value={productQty}
+                        onChange={(e) => {
+                          setProductQty(e.target.value);
+                          setQtyError("");
+                        }}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && priceInputRef.current?.focus()
+                        }
+                        placeholder="Qty"
+                        min="1"
+                        step="1"
+                        className="pos-input pl-11"
+                        data-ocid="pos.product_qty.input"
+                      />
+                    </div>
+                    {qtyError && (
+                      <p
+                        className="text-xs text-destructive mt-1"
+                        data-ocid="pos.qty.error_state"
+                      >
+                        {qtyError}
+                      </p>
+                    )}
                   </div>
-                  {priceError && (
-                    <p
-                      className="text-xs text-destructive mt-1"
-                      data-ocid="pos.price.error_state"
-                    >
-                      {priceError}
-                    </p>
-                  )}
+
+                  <div>
+                    <div className="relative">
+                      <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      <input
+                        ref={priceInputRef}
+                        type="number"
+                        value={productPrice}
+                        onChange={(e) => {
+                          setProductPrice(e.target.value);
+                          setPriceError("");
+                        }}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleAddProduct()
+                        }
+                        placeholder="Price"
+                        min="0"
+                        step="0.5"
+                        className="pos-input pl-11"
+                        data-ocid="pos.product_price.input"
+                      />
+                    </div>
+                    {priceError && (
+                      <p
+                        className="text-xs text-destructive mt-1"
+                        data-ocid="pos.qty.error_state"
+                      >
+                        {qtyError}
+                      </p>
+                    )}
+                  </div>
                 </div>
+
+                {/* Line total preview */}
+                {showLineTotal && (
+                  <div
+                    className="text-xs px-3 py-2 rounded-lg flex items-center gap-1.5"
+                    style={{
+                      background: "oklch(0.50 0.20 300 / 0.08)",
+                      color: "oklch(0.50 0.20 300)",
+                    }}
+                  >
+                    <span className="font-semibold">
+                      Line total: {formatCurrency(lineTotal)}
+                    </span>
+                    {previewQty > 1 && (
+                      <span className="text-muted-foreground">
+                        &nbsp;({previewQty} × {formatCurrency(previewUnitPrice)}{" "}
+                        per unit)
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <button
@@ -727,9 +834,16 @@ export default function POSDashboard() {
                         <span className="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-secondary-foreground flex-shrink-0">
                           {idx + 1}
                         </span>
-                        <span className="flex-1 font-medium text-foreground text-sm truncate">
-                          {item.name}
-                        </span>
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-foreground text-sm truncate block">
+                            {item.name}
+                          </span>
+                          {item.qty > 1 && (
+                            <span className="text-xs text-muted-foreground">
+                              {item.qty} × {formatCurrency(item.unitPrice)}
+                            </span>
+                          )}
+                        </div>
                         <span
                           className="font-semibold text-sm flex-shrink-0"
                           style={{ color: "oklch(0.50 0.20 300)" }}
@@ -787,16 +901,20 @@ export default function POSDashboard() {
                 ) : (
                   <div className="space-y-2 mb-4">
                     {cart.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex justify-between items-center text-sm"
-                      >
-                        <span className="text-foreground truncate pr-4">
-                          {item.name}
-                        </span>
-                        <span className="font-medium text-foreground flex-shrink-0">
-                          {formatCurrency(item.price)}
-                        </span>
+                      <div key={item.id}>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-foreground truncate pr-4">
+                            {item.name}
+                          </span>
+                          <span className="font-medium text-foreground flex-shrink-0">
+                            {formatCurrency(item.price)}
+                          </span>
+                        </div>
+                        {item.qty > 1 && (
+                          <div className="text-xs text-muted-foreground pl-1">
+                            {item.qty} × {formatCurrency(item.unitPrice)}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -815,7 +933,7 @@ export default function POSDashboard() {
                       Total
                     </span>
                     <span
-                      className="font-display font-bold text-xl"
+                      className="font-display font-bold text-2xl tabular-nums break-all"
                       style={{ color: "oklch(0.50 0.20 300)" }}
                     >
                       {formatCurrency(total)}
@@ -908,7 +1026,7 @@ export default function POSDashboard() {
                         Google Pay &middot; PhonePe &middot; Paytm
                       </p>
                       <p
-                        className="font-display font-bold text-2xl mt-2"
+                        className="font-display font-bold text-2xl mt-2 tabular-nums"
                         style={{ color: "oklch(0.50 0.20 300)" }}
                       >
                         {formatCurrency(total)}
@@ -982,7 +1100,7 @@ export default function POSDashboard() {
                         Bill Completed
                       </p>
                       <p
-                        className="font-display font-bold text-2xl mt-2"
+                        className="font-display font-bold text-2xl mt-2 tabular-nums"
                         style={{ color: "oklch(0.42 0.18 160)" }}
                       >
                         {formatCurrency(total)}
