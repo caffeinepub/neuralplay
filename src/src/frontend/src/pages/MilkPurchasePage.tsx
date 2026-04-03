@@ -197,7 +197,7 @@ function build7DayReceiptBytes(record: SevenDayRecord): Uint8Array {
       const dateStr = fmtShort(day.date).padEnd(11);
       const morn = `${day.morningQty.toFixed(1)}L`.padEnd(6);
       const eve = `${day.eveningQty.toFixed(1)}L`.padEnd(6);
-      const amt = `Rs.${Math.round(day.amount)}`;
+      const amt = `Rs.${Number.isInteger(day.amount) ? day.amount : day.amount.toFixed(2).replace(/\.?0+$/, "")}`;
       parts.push(_text(`${dateStr}${morn}${eve}${amt}\n`));
     }
   }
@@ -259,7 +259,7 @@ function build7DayWhatsAppMessage(record: SevenDayRecord): string {
 
   for (const day of sortedDays) {
     if (day.morningQty > 0 || day.eveningQty > 0) {
-      msg += `${fmtShort(day.date)} | ${day.morningQty.toFixed(1)}L | ${day.eveningQty.toFixed(1)}L | Rs.${Math.round(day.amount)}\n`;
+      msg += `${fmtShort(day.date)} | ${day.morningQty.toFixed(1)}L | ${day.eveningQty.toFixed(1)}L | Rs.${Number.isInteger(day.amount) ? day.amount : day.amount.toFixed(2).replace(/\.?0+$/, "")}\n`;
     }
   }
 
@@ -1402,7 +1402,9 @@ export default function MilkPurchasePage() {
                                   : {}
                               }
                             >
-                              {amount > 0 ? `Rs.${Math.round(amount)}` : "—"}
+                              {amount > 0
+                                ? `Rs.${Number.isInteger(amount) ? amount : amount.toFixed(2).replace(/\.?0+$/, "")}`
+                                : "—"}
                             </span>
                           </div>
                         </div>
@@ -1565,7 +1567,7 @@ export default function MilkPurchasePage() {
                             const dayLabel = DAY_ABBR[dayIdx] ?? "";
                             const amtLabel =
                               row.amount > 0
-                                ? `Rs.${Math.round(row.amount).toLocaleString("en-IN")}`
+                                ? `Rs.${Number.isInteger(row.amount) ? row.amount.toLocaleString("en-IN") : row.amount.toFixed(2).replace(/\.?0+$/, "")}`
                                 : "";
                             return (
                               <g key={row.date}>
