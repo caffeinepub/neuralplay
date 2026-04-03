@@ -69,10 +69,13 @@ function buildWhatsAppMessage(
   lines.push("");
   lines.push("-------------------------------");
   cart.forEach((item, idx) => {
-    lines.push(`${idx + 1}. ${item.name}  Rs.${item.price.toFixed(0)}`);
+    const priceStr = Number.isInteger(item.price)
+      ? item.price.toString()
+      : item.price.toFixed(2).replace(/\.?0+$/, "");
+    lines.push(`${idx + 1}. ${item.name}  Rs.${priceStr}`);
   });
   lines.push("-------------------------------");
-  lines.push(`*Total: Rs.${total.toFixed(0)}*`);
+  lines.push(`*Total: Rs.${Math.floor(total)}*`);
   lines.push("");
   lines.push("Thank you for your purchase!");
   return lines.join("\n");

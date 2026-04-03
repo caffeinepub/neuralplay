@@ -51,9 +51,10 @@ function concat(...parts: Uint8Array[]): Uint8Array {
 }
 
 // ASCII-only Indian number format (no Unicode symbols)
+// Format total as whole number only (floor - no rounding up, no decimals)
 function formatAmountASCII(n: number): string {
-  const rounded = Math.round(n);
-  const s = rounded.toString();
+  const floored = Math.floor(n);
+  const s = floored.toString();
   if (s.length <= 3) return `Rs.${s}`;
   const last3 = s.slice(-3);
   let rest = s.slice(0, -3);
@@ -64,6 +65,13 @@ function formatAmountASCII(n: number): string {
   }
   if (rest.length > 0) groups.unshift(rest);
   return `Rs.${groups.join(",")}`;
+}
+
+// Format individual item price keeping decimal values (e.g. 4.75 -> Rs.4.75)
+function formatItemAmountASCII(n: number): string {
+  const isWhole = Number.isInteger(n);
+  const display = isWhole ? n.toString() : n.toFixed(2).replace(/\.?0+$/, "");
+  return `Rs.${display}`;
 }
 
 // Convert integer to words (ASCII-safe)
@@ -181,7 +189,7 @@ export function buildReceiptBytes(
     bytes(ESC, 0x45, 0x00),
     text(LINE),
     ...items.map((item) =>
-      text(padRow(item.name, formatAmountASCII(item.price))),
+      text(padRow(item.name, formatItemAmountASCII(item.price))),
     ),
     text(DBL),
     bytes(ESC, 0x45, 0x01),

@@ -102,7 +102,7 @@ function buildMilkReceiptBytes(record: MilkPurchaseRecord): Uint8Array {
     timeStyle: "short",
   }).format(new Date(record.date));
 
-  const totalStr = `Rs.${Math.round(record.totalAmount).toLocaleString("en-IN")}`;
+  const totalStr = `Rs.${Math.floor(record.totalAmount).toLocaleString("en-IN")}`;
 
   const parts: Uint8Array[] = [
     _bytes(ESC, 0x40),
@@ -215,7 +215,7 @@ function build7DayReceiptBytes(record: SevenDayRecord): Uint8Array {
     _text(
       _padRow(
         "GRAND TOTAL:",
-        `Rs.${Math.round(record.totalAmount).toLocaleString("en-IN")}`,
+        `Rs.${Math.floor(record.totalAmount).toLocaleString("en-IN")}`,
       ),
     ),
     _bytes(ESC, 0x45, 0x00),
@@ -266,7 +266,7 @@ function build7DayWhatsAppMessage(record: SevenDayRecord): string {
   msg += "============================\n";
   msg += `Total Morning: ${record.totalMorningLiters.toFixed(1)} L\n`;
   msg += `Total Evening: ${record.totalEveningLiters.toFixed(1)} L\n`;
-  msg += `*GRAND TOTAL: Rs.${Math.round(record.totalAmount).toLocaleString("en-IN")}*\n`;
+  msg += `*GRAND TOTAL: Rs.${Math.floor(record.totalAmount).toLocaleString("en-IN")}*\n`;
   msg += "----------------------------\n";
   return msg;
 }
@@ -354,7 +354,7 @@ function buildWhatsAppMessage(record: MilkPurchaseRecord): string {
   if (record.fat) msg += `Fat %: ${record.fat}%\n`;
   if (record.snf) msg += `SNF %: ${record.snf}%\n`;
   msg += "============================\n";
-  msg += `*TOTAL: Rs.${Math.round(record.totalAmount).toLocaleString("en-IN")}*\n`;
+  msg += `*TOTAL: Rs.${Math.floor(record.totalAmount).toLocaleString("en-IN")}*\n`;
   msg += "----------------------------\n";
   return msg;
 }
@@ -1442,7 +1442,7 @@ export default function MilkPurchasePage() {
                         style={{ color: "oklch(0.50 0.20 300)" }}
                       >
                         {s7GrandTotal > 0
-                          ? `Rs.${Math.round(s7GrandTotal).toLocaleString("en-IN")}`
+                          ? `Rs.${Math.floor(s7GrandTotal).toLocaleString("en-IN")}`
                           : "—"}
                       </span>
                     </div>
